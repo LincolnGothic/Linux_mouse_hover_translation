@@ -35,7 +35,8 @@ models and CJK fonts; it does not bundle them. Source builds need Qt 6.8+.
 Both functional suites pass with real Tesseract English/Chinese OCR, a real X11
 reading window, a local Mozhi-compatible server, and actual GUI/CLI processes.
 Packaging, corresponding source and installation-directory permissions were
-checked. See [docs/TESTING.md](TESTING.md) for the precise scope.
+checked. See [the validation details](https://github.com/LincolnGothic/Linux_mouse_hover_translation/blob/v0.1.0/docs/TESTING.md)
+for the precise scope.
 
 Supported: **X11/Xorg, one monitor, 100% scaling, English and Simplified Chinese**.
 Native Wayland, multiple monitors, fractional scaling and offline translation

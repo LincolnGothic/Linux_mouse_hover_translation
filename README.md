@@ -60,6 +60,9 @@ hover-translate
 The matching source archive is `hover-translate-0.1.0-Source.tar.gz`. Keep it
 available to recipients when sharing the binary; see [release instructions](docs/RELEASE.md).
 
+The GitHub workflow builds and tests on Debian 13. Version tags trigger an MVP
+prerelease containing the binary, its matching source archive, and checksums.
+
 ## Build and run on Debian 13
 
 ```bash

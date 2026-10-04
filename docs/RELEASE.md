@@ -48,9 +48,16 @@ supported language codes. Public instances can change, throttle requests or
 stop operating. Licensing compliance does not resolve a server operator's
 terms, privacy practices or rights to third-party services.
 
-Create a version tag from the source revision used to build the packages, then
-upload the binary, matching source archive and checksum file together to the
-same GitHub release. Include the tested platform and known limitations in the
-release notes; see [RELEASE-NOTES-0.1.0.md](RELEASE-NOTES-0.1.0.md).
+The GitHub workflow builds, runs both suites, and uploads artifacts on `main`
+and pull requests. Pushing a version tag triggers the same checks and then
+creates a GitHub MVP prerelease with the binary, matching source archive and
+checksum file together. The release job uses GitHub's own scoped workflow token;
+no personal token belongs in the repository.
+
+Create the version tag from the source revision intended for the release.
+Include the tested platform and known limitations in the release notes; see
+[RELEASE-NOTES-0.1.0.md](RELEASE-NOTES-0.1.0.md). Check the workflow result and
+release assets before announcing the release. Use `docs/GITHUB.md` for a manual
+upload if the workflow is unavailable.
 Users who only modify and run the program privately do not have to publish
 their private changes solely because of GPL.
