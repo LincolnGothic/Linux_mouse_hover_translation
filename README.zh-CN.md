@@ -4,6 +4,9 @@
 
 [下载发布包及对应源码](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases)
 
+**0.2.0 为预览版。** Argos 模型下载在云环境及 GitHub 验证中均返回 HTTP 403，
+真实句子翻译尚未验证，安装包也未包含模型。安装前请阅读发布说明。
+
 0.2.0 默认使用本地 Argos 模型进行翻译，可选 CC-CEDICT 词典释义。
 首次下载运行环境及模型后，翻译不需要联网或 API 密钥。
 项目采用 **GPL-3.0-or-later**，保留 Crow Translate 4.1.0 的版权及修改声明。

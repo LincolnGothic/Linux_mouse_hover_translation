@@ -31,12 +31,15 @@ the same screenshot fixture, not a real GNOME capture backend. On Wayland,
 focus changes can reannounce clipboard offers; tests check unchanged contents
 at every notification rather than interpreting notifications as clipboard writes.
 
-## Sentence models: validation blocked
+## Sentence models: download blocked in cloud and GitHub Actions
 
 This cloud environment currently returns **HTTP 403** for `argos-net.com`,
 before model downloads complete. Its optional `www.mdbg.net` CC-CEDICT export
 is also blocked. The required host additions are saved in the environment
 configuration draft, but saving a draft does not apply it to the running cloud.
+The real-model step in GitHub Actions also returns HTTP 403 when downloading
+the English-to-Chinese model, after the runtime dependencies install successfully.
+Version 0.2.0 is therefore published as a preview with this limitation recorded.
 
 The real Argos runtime successfully loads through the application and reports
 the missing English/Chinese models. **No real sentence-model translation or

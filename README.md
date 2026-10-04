@@ -14,6 +14,10 @@ Use the **Ubuntu 26.04 amd64** package and its matching source archive:
 
 [Download release assets](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases).
 
+**0.2.0 is a preview.** Argos model downloads currently return HTTP 403 in the
+cloud and GitHub validation runs. Real sentence translation remains unverified;
+the installer does not include models. See the release notes before installing.
+
 ```bash
 sudo apt install ./hover-translate_0.2.0_amd64.deb
 hover-translate

@@ -1,4 +1,16 @@
-# Hover Translate 0.2.0 — offline translation and screen regions
+# Hover Translate 0.2.0 — offline and Wayland preview
+
+**Pre-release:** real sentence translation is not verified. The official Argos
+model host currently returns HTTP 403 in both the cloud environment and GitHub
+Actions, preventing the English/Chinese model download. The Ubuntu build, OCR,
+dictionary and native Wayland-client fixture tests pass. Actual GNOME capture
+permissions also need verification on a user's desktop.
+
+This package includes the offline engine integration and setup tool; it does
+not include translation models or a dictionary. An existing CC-CEDICT file can
+be selected in Settings. The terminal command
+`hover-translate-offline-setup --dictionary-only` installs just the optional
+dictionary. Existing Argos models can be selected with the model-folder setting.
 
 Offline translation is now the default. Install the per-user Argos runtime and
 English/Chinese models once from Settings; subsequent translation uses no API
@@ -21,7 +33,8 @@ GNOME permissions still require user-desktop verification. Real sentence-model
 checks are blocked in the cloud by the model host's HTTP 403 network policy;
 model translation quality is not verified in that cloud environment. The
 GitHub release workflow separately requires real offline model checks in both
-directions before publishing its artifacts; consult the Actions run for this tag.
+directions before publishing a stable version. This manually published preview
+records the blocked model check; consult the Actions runs for details.
 
 Install the Ubuntu 26.04 **amd64** package with:
 
