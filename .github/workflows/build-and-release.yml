@@ -47,10 +47,23 @@ jobs:
         run: bash tools/test-wayland.sh build
       - name: Install and exercise real offline sentence models
         run: |
-          python3 offline/setup_offline.py --data-dir "$RUNNER_TEMP/hover-offline" --without-dictionary
-          python3 tests/check_offline_models.py ./build/hover-translate \
-            --python "$RUNNER_TEMP/hover-offline/argos-env/bin/python" \
-            --models-dir "$RUNNER_TEMP/hover-offline/argos-packages"
+          model_log_path="$RUNNER_TEMP/hover-model-validation.log"
+          if python3 offline/setup_offline.py --data-dir "$RUNNER_TEMP/hover-offline" --without-dictionary >"$model_log_path" 2>&1 \
+            && python3 tests/check_offline_models.py ./build/hover-translate \
+              --python "$RUNNER_TEMP/hover-offline/argos-env/bin/python" \
+              --models-dir "$RUNNER_TEMP/hover-offline/argos-packages" >>"$model_log_path" 2>&1; then
+            cat "$model_log_path"
+          else
+            cat "$model_log_path"
+            python3 - "$model_log_path" <<'PY'
+          from pathlib import Path
+          import sys
+          detail = Path(sys.argv[1]).read_text(errors="replace")[-12000:]
+          detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print("::error title=Offline sentence-model validation::" + detail)
+          PY
+            exit 1
+          fi
       - name: Package binary and corresponding source
         run: |
           umask 022
