@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hover Translate
+Comment=Translate English and Simplified Chinese by hovering over a line
+Exec=hover-translate
+Icon=hover-translate
+Terminal=false
+Categories=Utility;Office;
+Keywords=translation;hover;OCR;Chinese;English;

@@ -1,0 +1,4 @@
+<RCC>
+  <qresource prefix="/icons"><file alias="hover-translate.svg">packaging/hover-translate.svg</file></qresource>
+  <qresource prefix="/licenses"><file alias="GPL-3.0-or-later.txt">LICENSE</file></qresource>
+</RCC>

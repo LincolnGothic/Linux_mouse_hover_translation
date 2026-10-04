@@ -1,0 +1,7 @@
+/build*/
+/.tools/
+*.user
+*.deb
+*.tar.gz
+__pycache__/
+/_CPack_Packages/

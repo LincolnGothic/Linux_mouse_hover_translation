@@ -1,0 +1,7 @@
+<!-- SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#22634d"/>
+  <path d="M13 42 22 19h5l9 23h-5l-2-6H20l-2 6zm8-10h7l-3.5-10z" fill="#ffffff"/>
+  <path d="M39 19h3v10h10v3H42v13h-3V32H29v-3h10z" fill="#a8dfc7"/>
+</svg>
