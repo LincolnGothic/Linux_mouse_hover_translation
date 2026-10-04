@@ -58,7 +58,8 @@ jobs:
             python3 - "$model_log_path" <<'PY'
           from pathlib import Path
           import sys
-          detail = Path(sys.argv[1]).read_text(errors="replace")[-12000:]
+          # GitHub truncates individual annotation messages at 4096 characters.
+          detail = Path(sys.argv[1]).read_text(errors="replace")[-3000:]
           detail = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print("::error title=Offline sentence-model validation::" + detail)
           PY
