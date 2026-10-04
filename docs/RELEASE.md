@@ -56,8 +56,9 @@ terms, privacy practices or rights to third-party services.
 
 The GitHub workflow builds, runs all suites and real model checks, and uploads artifacts on `main`
 and pull requests. Pushing a version tag triggers the same checks and then
-creates a GitHub MVP prerelease with the binary, matching source archive and
-checksum file together. The release job uses GitHub's own scoped workflow token;
+creates a GitHub release marked Latest, with the binary, matching source archive
+and checksum file together. All build and real-model checks must pass first.
+The release job uses GitHub's own scoped workflow token;
 no personal token belongs in the repository.
 
 Create the version tag from the source revision intended for the release.

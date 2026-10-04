@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -84,7 +88,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" --verify-tag --prerelease \
+          gh release create "$RELEASE_TAG" --verify-tag --latest \
             --title "Hover Translate $RELEASE_TAG — offline translation" \
             --notes-file docs/RELEASE-NOTES-0.2.0.md \
             release-assets/*.deb release-assets/*Source.tar.gz release-assets/SHA256SUMS

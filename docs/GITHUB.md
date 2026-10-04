@@ -32,7 +32,7 @@ matching source together:
 
 ```bash
 gh release create v0.2.0 --repo LincolnGothic/Linux_mouse_hover_translation \
-  --verify-tag --title 'Hover Translate 0.2.0 — offline translation' \
+  --verify-tag --latest --title 'Hover Translate 0.2.0 — offline translation' \
   --notes-file docs/RELEASE-NOTES-0.2.0.md \
   build-ubuntu2604/release/hover-translate_0.2.0_amd64.deb \
   build-ubuntu2604/release/hover-translate-0.2.0-Source.tar.gz \
