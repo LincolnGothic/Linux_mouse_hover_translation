@@ -1,0 +1,2 @@
+# CPU PyTorch is installed from its official CPU wheel index before this file.
+argostranslate==1.11.0

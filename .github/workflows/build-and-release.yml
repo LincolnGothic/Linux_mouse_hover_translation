@@ -15,30 +15,38 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    container: debian:13
+    container: ubuntu:26.04
     timeout-minutes: 20
     defaults:
       run:
         shell: bash
     steps:
-      - name: Install Debian 13 build and test dependencies
+      - name: Install Ubuntu 26.04 build and test dependencies
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
           apt-get install -y --no-install-recommends ca-certificates git \
-            build-essential cmake ninja-build pkg-config \
-            qt6-base-dev qt6-base-dev-tools qt6-scxml-dev qt6-svg-plugins \
+            build-essential cmake ninja-build pkg-config file \
+            qt6-base-dev qt6-base-dev-tools qt6-scxml-dev qt6-svg-plugins qt6-wayland \
             libtesseract-dev libleptonica-dev libxcb1-dev libxcb-xtest0-dev \
             tesseract-ocr-eng tesseract-ocr-chi-sim fonts-noto-cjk \
-            xvfb xauth x11-utils
+            xvfb xauth x11-utils dbus-x11 weston python3-venv
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Build
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
           cmake --build build --parallel 2
-      - name: Exercise real OCR and X11 hover
-        run: xvfb-run -a -s '-screen 0 1200x900x24' ctest --test-dir build --output-on-failure
+      - name: Exercise OCR, X11 hover and screenshot portal protocol
+        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' ctest --test-dir build --output-on-failure
+      - name: Exercise the native Wayland reader
+        run: bash tools/test-wayland.sh build
+      - name: Install and exercise real offline sentence models
+        run: |
+          python3 offline/setup_offline.py --data-dir "$RUNNER_TEMP/hover-offline" --without-dictionary
+          python3 tests/check_offline_models.py ./build/hover-translate \
+            --python "$RUNNER_TEMP/hover-offline/argos-env/bin/python" \
+            --models-dir "$RUNNER_TEMP/hover-offline/argos-packages"
       - name: Package binary and corresponding source
         run: |
           umask 022
@@ -70,13 +78,13 @@ jobs:
         with:
           name: hover-translate-${{ github.sha }}
           path: release-assets
-      - name: Publish the tagged MVP and its corresponding source
+      - name: Publish the tagged version and its corresponding source
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" --verify-tag --prerelease \
-            --title "Hover Translate $RELEASE_TAG — X11 MVP" \
-            --notes-file docs/RELEASE-NOTES-0.1.0.md \
+            --title "Hover Translate $RELEASE_TAG — offline translation" \
+            --notes-file docs/RELEASE-NOTES-0.2.0.md \
             release-assets/*.deb release-assets/*Source.tar.gz release-assets/SHA256SUMS

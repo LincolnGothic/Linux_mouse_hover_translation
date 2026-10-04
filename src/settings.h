@@ -6,11 +6,20 @@
 
 struct HoverSettings {
     QString target = QStringLiteral("zh-CN");
+    QString provider = QStringLiteral("offline");
     QString instance = QStringLiteral("https://mozhi.aryak.me");
+    QString pythonPath;
+    QString packagesPath;
+    QString dictionaryPath;
+    bool useDictionary = true;
     int dwellMs = 600;
     bool enabled = false;
     QString tessdataPath;
 };
+
+QString offlineDataDirectory();
+QString offlineAsset(const QString &name);
+QString offlinePython(const HoverSettings &settings);
 
 class SettingsStore {
 public:

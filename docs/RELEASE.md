@@ -5,7 +5,8 @@ the upstream notices, and the marked modifications with the source. New
 contributions must be compatible with that license. Before importing another
 component, check its license and record its origin and modifications.
 
-After the build and X11 tests pass, generate both packages from the same source
+After the build, portal/X11/Wayland tests and real offline model checks pass,
+generate both packages from the same source
 tree:
 
 ```bash
@@ -15,10 +16,15 @@ cpack --config build/CPackSourceConfig.cmake -B build/release
 (cd build/release && sha256sum *.deb *Source.tar.gz > SHA256SUMS)
 ```
 
-The Debian binary package targets Debian 13 amd64 and dynamically links system
-libraries. It depends on the English and Simplified Chinese OCR packages. It
-does not bundle Qt, OCR libraries, models, fonts or a translation server.
-Other distributions should build from source with Qt 6.8 or newer.
+For 0.2.0, build the binary package on Ubuntu 26.04 amd64, with system libraries
+installed so `dpkg-shlibdeps` calculates correct dependencies. Install `file`
+and `dpkg-dev` for this packaging step. It also depends
+on OCR language packages, Python venv support, Qt Wayland and the screenshot
+portal. It does not bundle Qt, models, fonts, dictionaries or the Python runtime.
+Other distributions should build/package with their own system libraries.
+The local cloud package can be prepared for review while model checks are
+blocked, but must be labeled with that limitation and must not be announced
+as a verified sentence-translation release.
 
 For an Internet download, place the matching source archive beside the binary
 with equivalent access and a clear link, as described by GPL section 6(d).
@@ -37,9 +43,9 @@ Check that the package includes the executable, desktop entry, original icon,
 license and notices:
 
 ```bash
-dpkg-deb --info build/release/hover-translate_0.1.0_amd64.deb
-dpkg-deb --contents build/release/hover-translate_0.1.0_amd64.deb
-tar -tzf build/release/hover-translate-0.1.0-Source.tar.gz
+dpkg-deb --info build/release/hover-translate_0.2.0_amd64.deb
+dpkg-deb --contents build/release/hover-translate_0.2.0_amd64.deb
+tar -tzf build/release/hover-translate-0.2.0-Source.tar.gz
 ```
 
 Before announcing public-server support, test the selected Mozhi instance in
@@ -48,7 +54,7 @@ supported language codes. Public instances can change, throttle requests or
 stop operating. Licensing compliance does not resolve a server operator's
 terms, privacy practices or rights to third-party services.
 
-The GitHub workflow builds, runs both suites, and uploads artifacts on `main`
+The GitHub workflow builds, runs all suites and real model checks, and uploads artifacts on `main`
 and pull requests. Pushing a version tag triggers the same checks and then
 creates a GitHub MVP prerelease with the binary, matching source archive and
 checksum file together. The release job uses GitHub's own scoped workflow token;
@@ -56,7 +62,7 @@ no personal token belongs in the repository.
 
 Create the version tag from the source revision intended for the release.
 Include the tested platform and known limitations in the release notes; see
-[RELEASE-NOTES-0.1.0.md](RELEASE-NOTES-0.1.0.md). Check the workflow result and
+[RELEASE-NOTES-0.2.0.md](RELEASE-NOTES-0.2.0.md). Check the workflow result and
 release assets before announcing the release. Use `docs/GITHUB.md` for a manual
 upload if the workflow is unavailable.
 Users who only modify and run the program privately do not have to publish

@@ -12,17 +12,19 @@ Contributions to application code use C++17 and Qt 6.8 or newer. Keep changes
 focused, preserve cancellation and focus/clipboard behavior, and state any
 new platform or service requirement. Add a meaningful test when behavior changes.
 
-Run the two suites under an isolated X11 display:
+Run the three suites under isolated D-Bus and X11 sessions, plus the Wayland reader checks:
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
 cmake --build build --parallel 4
-xvfb-run -a -s '-screen 0 1200x900x24' ctest --test-dir build --output-on-failure
+dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' ctest --test-dir build --output-on-failure
+bash tools/test-wayland.sh build
 git diff --check
 ```
 
 The hover test generates sample screenshots under `build/tests/`. The network
-fixture uses the Mozhi API shape; live service checks are separate. See
+fixture uses the Mozhi API shape; sentence-model checks use
+`tests/check_offline_models.py` and are separate from dictionary/portal fixtures. See
 [docs/TESTING.md](docs/TESTING.md) for scope and limitations.
 
 All contributions must be compatible with GPL-3.0-or-later. Keep existing

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "hovercontroller.h"
 #include "settingsdialog.h"
+#include "screenreader.h"
 #include <QAction>
 #include <QApplication>
 #include <QCommandLineParser>
@@ -10,6 +11,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMenu>
+#include <QProcess>
+#include <QDir>
 #include <QNetworkProxyFactory>
 #include <QSystemTrayIcon>
 #include <QTextStream>
@@ -35,18 +38,25 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("HoverTranslate");
     app.setOrganizationName("LincolnGothic");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion("0.2.0");
     app.setWindowIcon(QIcon(":/icons/hover-translate.svg"));
     QNetworkProxyFactory::setUseSystemConfiguration(true);
     QCommandLineParser parser;
-    parser.setApplicationDescription("Open-source X11 mouse-hover translation, English ↔ Simplified Chinese.\n"
+    parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. X11 hover and Wayland screen-region capture.\n"
         "GNU GPL version 3 or later; no warranty. See Settings → About & licenses.");
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOptions({
         {{"c", "config"}, "Use a specific settings file.", "file"},
         {"ocr", "Recognize an image locally and print line geometry as JSON.", "file"},
-        {"translate", "Translate text through the configured Mozhi server.", "text"},
+        {"translate", "Translate text locally by default.", "text"},
+        {"provider", "Translation provider: offline (default) or mozhi.", "provider"},
+        {"python", "Offline Python executable (normally detected automatically).", "file"},
+        {"models-dir", "Folder containing installed Argos packages.", "directory"},
+        {"dictionary", "CC-CEDICT text file for word definitions.", "file"},
+        {"no-dictionary", "Use sentence translation instead of dictionary lookup."},
+        {"capture", "Open the desktop screenshot dialog and translate a selected region."},
+        {"reader", "Open typed-text translation without automatic hover."},
         {"target", "Target language: en or zh-CN.", "language"},
         {"instance", "Mozhi HTTPS server URL (HTTP allowed only on localhost).", "url"},
         {"paused", "Start with hover paused."},
@@ -57,6 +67,12 @@ int main(int argc, char *argv[])
     auto settings = store.load();
     if (parser.isSet("target")) settings.target = parser.value("target");
     if (parser.isSet("instance")) settings.instance = parser.value("instance");
+    if (parser.isSet("instance") && !parser.isSet("provider")) settings.provider = "mozhi";
+    if (parser.isSet("provider")) settings.provider = parser.value("provider");
+    if (parser.isSet("python")) settings.pythonPath = parser.value("python");
+    if (parser.isSet("models-dir")) settings.packagesPath = parser.value("models-dir");
+    if (parser.isSet("dictionary")) settings.dictionaryPath = parser.value("dictionary");
+    if (parser.isSet("no-dictionary")) settings.useDictionary = false;
     if (parser.isSet("paused")) settings.enabled = false;
     QString error;
     if (!SettingsStore::validate(settings, &error)) {
@@ -96,7 +112,15 @@ int main(int argc, char *argv[])
         QObject::connect(&translator, &TranslationService::failed, &app, [&app](quint64, const QString &failure) {
             QTextStream(stderr) << failure << '\n'; app.exit(1);
         });
-        QTimer::singleShot(0, &translator, [&] { translator.translate(1, text, source, settings.target, settings.instance); });
+        QTimer::singleShot(0, &translator, [&] { translator.translate(1, text, source, settings.target, settings); });
+        return app.exec();
+    }
+
+    ScreenReader reader;
+    reader.configure(settings);
+    if (parser.isSet("capture") || parser.isSet("reader")) {
+        reader.show();
+        if (parser.isSet("capture")) QTimer::singleShot(0, &reader, &ScreenReader::capture);
         return app.exec();
     }
 
@@ -116,7 +140,11 @@ int main(int argc, char *argv[])
     auto *pause = menu.addAction("Enable hover translation");
     pause->setCheckable(true);
     pause->setChecked(controller.enabled());
+    pause->setEnabled(HoverController::platformProblem().isEmpty());
+    pause->setToolTip(HoverController::platformProblem());
     auto *showSettings = menu.addAction("Settings…");
+    auto *captureRegion = menu.addAction("Translate screen region…");
+    auto *translateText = menu.addAction("Translate text…");
     menu.addSeparator();
     menu.addAction("Quit", &app, &QApplication::quit);
     tray.setContextMenu(&menu);
@@ -131,6 +159,7 @@ int main(int argc, char *argv[])
             return;
         }
         settings = requested;
+        reader.configure(settings);
         dialog.setSettings(settings);
         pause->setChecked(controller.enabled());
     };
@@ -139,21 +168,56 @@ int main(int argc, char *argv[])
         auto requested = settings; requested.enabled = enabled; apply(requested);
     });
     QObject::connect(showSettings, &QAction::triggered, &dialog, [&] { dialog.show(); dialog.raise(); dialog.activateWindow(); });
+    auto openReader = [&](const HoverSettings &requested, bool capture) {
+        QString failure;
+        if (!SettingsStore::validate(requested, &failure)) { dialog.showProblem(failure); return; }
+        reader.configure(requested); reader.show();
+        if (capture) { dialog.hide(); reader.capture(); }
+    };
+    QObject::connect(&dialog, &SettingsDialog::readerRequested, &reader, [&](const HoverSettings &requested) { openReader(requested, false); });
+    QObject::connect(&dialog, &SettingsDialog::captureRequested, &reader, [&](const HoverSettings &requested) { openReader(requested, true); });
+    QObject::connect(captureRegion, &QAction::triggered, &reader, [&] { openReader(settings, true); });
+    QObject::connect(translateText, &QAction::triggered, &reader, [&] { openReader(settings, false); });
     QObject::connect(&tray, &QSystemTrayIcon::activated, &dialog, [&](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
             dialog.show(); dialog.raise(); dialog.activateWindow();
         }
     });
-    // Server tests use their own translator and never cancel a hover request.
+    // Settings tests use their own translator and never cancel a hover request.
     TranslationService testClient;
     QObject::connect(&dialog, &SettingsDialog::testRequested, &app, [&](const HoverSettings &requested) {
-        dialog.setStatus("Testing the server with “Hello”…");
-        testClient.translate(1, "Hello", "en", "zh-CN", requested.instance);
+        const QString sample = requested.target == "en" ? QString("你好世界") : QString("Hello world");
+        const QString source = requested.target == "en" ? QString("zh-CN") : QString("en");
+        dialog.setStatus("Testing translation with “" + sample + "”…");
+        testClient.translate(1, sample, source, requested.target, requested);
     });
     QObject::connect(&testClient, &TranslationService::translated, &dialog, [&](quint64, const QString &result) {
-        dialog.setStatus("Server responded: Hello → " + result);
+        dialog.setStatus("Translation test result: " + result);
+        testClient.resetOffline();
     });
-    QObject::connect(&testClient, &TranslationService::failed, &dialog, [&](quint64, const QString &failure) { dialog.setStatus(failure); });
+    QObject::connect(&testClient, &TranslationService::failed, &dialog, [&](quint64, const QString &failure) { dialog.setStatus(failure); testClient.resetOffline(); });
+    QProcess installer;
+    QObject::connect(&dialog, &SettingsDialog::setupRequested, &app, [&] {
+        if (installer.state() != QProcess::NotRunning) { dialog.setStatus("Offline setup is already running."); return; }
+        const QString helper = offlineAsset("setup_offline.py");
+        if (helper.isEmpty()) { dialog.showProblem("The offline setup helper is missing. Reinstall Hover Translate."); return; }
+        QDir().mkpath(offlineDataDirectory());
+        installer.setProcessChannelMode(QProcess::MergedChannels);
+        dialog.setStatus("Downloading the offline runtime and English / Chinese models. This first setup may take several minutes.");
+        installer.start("python3", {"-u", helper, "--data-dir", offlineDataDirectory()});
+    });
+    QObject::connect(&installer, &QProcess::readyReadStandardOutput, &dialog, [&] {
+        const auto lines = QString::fromUtf8(installer.readAllStandardOutput()).trimmed().split('\n');
+        if (!lines.isEmpty()) dialog.setStatus(lines.last().left(500));
+    });
+    QObject::connect(&installer, &QProcess::errorOccurred, &dialog, [&](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) dialog.setStatus("Could not start setup. Install python3 and python3-venv.");
+    });
+    QObject::connect(&installer, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), &dialog, [&](int code, QProcess::ExitStatus status) {
+        dialog.setStatus(status == QProcess::NormalExit && code == 0
+            ? "Offline models installed. Use Test translation to check the selected direction."
+            : "Offline setup failed. Check your connection and run hover-translate-offline-setup in a terminal for details.");
+    });
     const bool haveTray = QSystemTrayIcon::isSystemTrayAvailable();
     if (haveTray) tray.show();
     app.setQuitOnLastWindowClosed(!haveTray);

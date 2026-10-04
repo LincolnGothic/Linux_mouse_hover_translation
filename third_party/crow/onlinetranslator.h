@@ -9,6 +9,7 @@
 #define ONLINETRANSLATOR_H
 
 #include <QJsonDocument>
+#include <QObject> // Explicit base-class include for Qt 6.10 (local modification).
 #include <QMap>
 // Modified 2026-10-04: remove unused Qt Multimedia dependency for the hover MVP.
 #include <QPointer>

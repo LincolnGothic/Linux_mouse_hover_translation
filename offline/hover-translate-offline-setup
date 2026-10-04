@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+exec python3 "$(dirname "$(readlink -f "$0")")/../share/hover-translate/setup_offline.py" "$@"

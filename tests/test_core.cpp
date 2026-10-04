@@ -28,6 +28,11 @@ private slots:
     void translationTimeoutAndRecovery();
     void malformedResponseFails();
     void abortedRequestCannotCompleteNext();
+    void offlineDefaultAndPersistence();
+    void offlineDictionaryBothDirectionsAndCancellation();
+    void missingOfflinePythonFails();
+    void offlineBusyRequestCancellation();
+    void offlineTimeoutAndRecovery();
 };
 
 void CoreTest::dwellAndMovement()
@@ -227,6 +232,119 @@ void CoreTest::abortedRequestCannotCompleteNext()
     QCOMPARE(success.last().at(0).toULongLong(), 2ULL);
     QTest::qWait(300);
     QCOMPARE(success.count(), 1);
+}
+
+void CoreTest::offlineDefaultAndPersistence()
+{
+    QTemporaryDir directory;
+    SettingsStore store(directory.filePath("settings.ini"));
+    HoverSettings settings;
+    QCOMPARE(settings.provider, QString("offline"));
+    settings.instance = "not a server";
+    settings.pythonPath = "/custom/python";
+    settings.packagesPath = "/custom/packages";
+    settings.dictionaryPath = "/custom/cedict.u8";
+    settings.useDictionary = false;
+    QVERIFY(store.save(settings));
+    const auto loaded = store.load();
+    QCOMPARE(loaded.provider, settings.provider);
+    QCOMPARE(loaded.pythonPath, settings.pythonPath);
+    QCOMPARE(loaded.packagesPath, settings.packagesPath);
+    QCOMPARE(loaded.dictionaryPath, settings.dictionaryPath);
+    QVERIFY(!loaded.useDictionary);
+    settings.provider = "mozhi";
+    QVERIFY(!SettingsStore::validate(settings));
+}
+
+void CoreTest::offlineDictionaryBothDirectionsAndCancellation()
+{
+    QTemporaryDir directory;
+    const QString path = directory.filePath("cedict.u8");
+    QFile dictionary(path); QVERIFY(dictionary.open(QIODevice::WriteOnly));
+    dictionary.write(QString("# fixture, created for this test\n你好 你好 [ni3 hao3] /hello/hi/\n世界 世界 [shi4 jie4] /world/\n").toUtf8()); dictionary.close();
+    HoverSettings settings; settings.dictionaryPath = path; settings.pythonPath = "python3";
+    MockServer server; settings.instance = server.url();
+    TranslationService client;
+    QSignalSpy success(&client, &TranslationService::translated);
+    QSignalSpy failure(&client, &TranslationService::failed);
+    client.translate(1, "Hello", "en", "zh-CN", settings);
+    client.cancel();
+    client.translate(2, "你 好", "zh-CN", "en", settings);
+    QVERIFY(success.wait(5000));
+    QCOMPARE(success.count(), 1);
+    QCOMPARE(success.last().at(0).toULongLong(), 2ULL);
+    QCOMPARE(success.last().at(1).toString(), QString("hello; hi"));
+    client.translate(3, "Hello", "en", "zh-CN", settings);
+    QVERIFY(success.wait(5000));
+    QVERIFY(success.last().at(1).toString().contains("你好"));
+    QCOMPARE(server.requests.size(), 0);
+    QCOMPARE(failure.count(), 0);
+}
+
+void CoreTest::missingOfflinePythonFails()
+{
+    HoverSettings settings; settings.pythonPath = "/nonexistent/hover-python";
+    TranslationService client;
+    QSignalSpy failure(&client, &TranslationService::failed);
+    QSignalSpy success(&client, &TranslationService::translated);
+    client.translate(1, "Hello world", "en", "zh-CN", settings);
+    QVERIFY(failure.wait(3000));
+    QCOMPARE(success.count(), 0);
+    QVERIFY(failure.last().at(1).toString().contains("offline", Qt::CaseInsensitive));
+}
+
+static HoverSettings delayedOfflineFixture(QTemporaryDir &directory)
+{
+    const QString path = directory.filePath("python-fixture");
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) return {};
+    file.write("#!/usr/bin/env python3\nimport json,sys,time\nfrom pathlib import Path\n"
+        "marker=Path(sys.argv[sys.argv.index('--packages-dir')+1])/'received'\n"
+        "print(json.dumps({'ready':True}),flush=True)\n"
+        "for line in sys.stdin:\n"
+        " r=json.loads(line)\n"
+        " if r['text']=='Slow':\n"
+        "  marker.write_text('received')\n"
+        "  time.sleep(0.3)\n"
+        " print(json.dumps({'id':r['id'],'translation':'result '+r['text']}),flush=True)\n");
+    file.close();
+    file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+    HoverSettings settings; settings.pythonPath = path; settings.packagesPath = directory.path(); settings.useDictionary = false;
+    return settings;
+}
+
+void CoreTest::offlineBusyRequestCancellation()
+{
+    QTemporaryDir directory;
+    const auto settings = delayedOfflineFixture(directory);
+    TranslationService client;
+    QSignalSpy success(&client,&TranslationService::translated);
+    QSignalSpy failure(&client,&TranslationService::failed);
+    client.translate(1,"Slow","en","zh-CN",settings);
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(directory.filePath("received")),2000);
+    client.translate(2,"Fast","en","zh-CN",settings);
+    QVERIFY(success.wait(2000));
+    QCOMPARE(success.count(),1);
+    QCOMPARE(success.last().at(0).toULongLong(),2ULL);
+    QCOMPARE(success.last().at(1).toString(),QString("result Fast"));
+    QCOMPARE(failure.count(),0);
+}
+
+void CoreTest::offlineTimeoutAndRecovery()
+{
+    QTemporaryDir directory;
+    const auto settings = delayedOfflineFixture(directory);
+    TranslationService client; client.setOfflineTimeoutMs(80);
+    QSignalSpy success(&client,&TranslationService::translated);
+    QSignalSpy failure(&client,&TranslationService::failed);
+    client.translate(1,"Slow","en","zh-CN",settings);
+    QVERIFY(failure.wait(1500));
+    QCOMPARE(success.count(),0);
+    client.setOfflineTimeoutMs(2000);
+    client.translate(2,"Fast","en","zh-CN",settings);
+    QVERIFY(success.wait(3000));
+    QCOMPARE(success.last().at(1).toString(),QString("result Fast"));
+    QCOMPARE(failure.count(),1);
 }
 
 QTEST_MAIN(CoreTest)

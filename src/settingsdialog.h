@@ -19,10 +19,17 @@ public:
 signals:
     void applyRequested(const HoverSettings &settings);
     void testRequested(const HoverSettings &settings);
+    void captureRequested(const HoverSettings &settings);
+    void readerRequested(const HoverSettings &settings);
+    void setupRequested();
 private:
     QCheckBox *m_enabled;
+    QCheckBox *m_useDictionary;
     QComboBox *m_target;
+    QComboBox *m_provider;
     QLineEdit *m_server, *m_tessdata;
+    QLineEdit *m_python, *m_packages, *m_dictionary;
     QSpinBox *m_dwell;
     QLabel *m_status;
+    QLabel *m_privacy;
 };

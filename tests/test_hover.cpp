@@ -90,7 +90,7 @@ void HoverTest::actualHoverBothDirectionsAndCache()
                 .arg(line.text).arg(line.bounds.x()).arg(line.bounds.y())
                 .arg(line.bounds.width()).arg(line.bounds.height()).arg(line.confidence);
     });
-    HoverSettings settings; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy popup(&controller, &HoverController::popupShown);
     QCursor::setPos(surface.englishPoint());
@@ -125,7 +125,7 @@ void HoverTest::movementDropsSlowTranslation()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server; server.delayMs = 500;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy request(&server, &MockServer::received);
     QSignalSpy popup(&controller, &HoverController::popupShown);
@@ -143,7 +143,7 @@ void HoverTest::pauseDropsSlowTranslation()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server; server.delayMs = 500;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy request(&server, &MockServer::received);
     QSignalSpy popup(&controller, &HoverController::popupShown);
@@ -163,7 +163,7 @@ void HoverTest::ignoresSettingsWindow()
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
     controller.setIgnoredWidgets({&surface});
-    HoverSettings settings; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QCursor::setPos(surface.englishPoint());
     QTest::qWait(600);
@@ -177,7 +177,7 @@ void HoverTest::sameTargetMakesNoRequest()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.enabled = true; settings.target = "en"; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.target = "en"; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy read(&ocr, &TesseractOcr::linesRecognized);
     QString recognized;
@@ -197,7 +197,7 @@ void HoverTest::escapeDismissesWithoutReappearing()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy popup(&controller, &HoverController::popupShown);
     QCursor::setPos(surface.englishPoint());

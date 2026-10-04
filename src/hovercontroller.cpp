@@ -64,7 +64,7 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
         m_translationGeneration = m_policy.generation();
         emit statusChanged(tr("Translating…"));
         m_translator->translate(m_translationGeneration, m_sourceText, source,
-                                m_settings.target, m_settings.instance);
+                                m_settings.target, m_settings);
     });
     connect(m_ocr, &TesseractOcr::failed, this, [this](const QString &error) {
         if (m_haveOcr && current(m_ocrGeneration)) emit statusChanged(error);
@@ -93,7 +93,7 @@ QString HoverController::platformProblem()
     if (QGuiApplication::platformName() != "xcb"
         || qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
         || qEnvironmentVariableIsSet("WAYLAND_DISPLAY"))
-        return tr("Automatic hover currently requires an X11/Xorg desktop session. Native Wayland is planned.");
+        return tr("Automatic hover requires X11/Xorg. On Wayland, use Translate screen region instead.");
     const auto screens = QGuiApplication::screens();
     if (screens.size() != 1 || !qFuzzyCompare(screens.first()->devicePixelRatio(), 1.0))
         return tr("This first version supports one monitor at 100% scaling.");
@@ -193,7 +193,10 @@ void HoverController::capture()
 
 QString HoverController::cacheKey(const QString &text, const QString &source) const
 {
-    return m_settings.instance + QChar(0) + source + QChar(0) + m_settings.target + QChar(0) + text;
+    return m_settings.provider + QChar(0) + m_settings.instance + QChar(0)
+        + m_settings.pythonPath + QChar(0) + m_settings.packagesPath + QChar(0)
+        + m_settings.dictionaryPath + QString::number(m_settings.useDictionary) + QChar(0)
+        + source + QChar(0) + m_settings.target + QChar(0) + text;
 }
 
 void HoverController::showResult(const QString &text, bool error)

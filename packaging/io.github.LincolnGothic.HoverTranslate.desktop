@@ -1,9 +1,18 @@
 [Desktop Entry]
 Type=Application
 Name=Hover Translate
-Comment=Translate English and Simplified Chinese by hovering over a line
+Comment=Translate English and Chinese offline with screen-region OCR or X11 hover
 Exec=hover-translate
 Icon=hover-translate
 Terminal=false
 Categories=Utility;Office;
-Keywords=translation;hover;OCR;Chinese;English;
+Keywords=translation;offline;dictionary;hover;OCR;Chinese;English;
+Actions=Capture;Reader;
+
+[Desktop Action Capture]
+Name=Translate screen region
+Exec=hover-translate --capture
+
+[Desktop Action Reader]
+Name=Translate text
+Exec=hover-translate --reader

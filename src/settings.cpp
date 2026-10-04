@@ -6,6 +6,29 @@
 #include <QHostAddress>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QCoreApplication>
+
+QString offlineDataDirectory()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/hover-translate";
+}
+
+QString offlineAsset(const QString &name)
+{
+    const QString base = QCoreApplication::applicationDirPath();
+    for (const auto &directory : {base + "/share/hover-translate", base + "/../share/hover-translate"}) {
+        const QString file = QDir(directory).absoluteFilePath(name);
+        if (QFileInfo::exists(file)) return file;
+    }
+    return {};
+}
+
+QString offlinePython(const HoverSettings &settings)
+{
+    if (!settings.pythonPath.isEmpty()) return settings.pythonPath;
+    const QString managed = offlineDataDirectory() + "/argos-env/bin/python";
+    return QFileInfo::exists(managed) ? managed : QStringLiteral("python3");
+}
 
 SettingsStore::SettingsStore(QString fileName)
     : m_fileName(fileName.isEmpty()
@@ -30,7 +53,9 @@ bool SettingsStore::validate(const HoverSettings &settings, QString *error)
     QString message;
     if (settings.target != "en" && settings.target != "zh-CN")
         message = QStringLiteral("Choose English or Simplified Chinese.");
-    else if (!validInstance(settings.instance))
+    else if (settings.provider != "offline" && settings.provider != "mozhi")
+        message = QStringLiteral("Choose offline translation or Mozhi.");
+    else if (settings.provider == "mozhi" && !validInstance(settings.instance))
         message = QStringLiteral("Enter an HTTPS Mozhi server URL without credentials, a query, or a fragment. HTTP is allowed only on localhost.");
     else if (settings.dwellMs < 100 || settings.dwellMs > 3000)
         message = QStringLiteral("The hover delay must be between 100 and 3000 milliseconds.");
@@ -43,13 +68,19 @@ HoverSettings SettingsStore::load() const
     const QSettings file(m_fileName, QSettings::IniFormat);
     HoverSettings settings;
     settings.target = file.value("translation/target", settings.target).toString();
+    settings.provider = file.value("translation/provider", settings.provider).toString();
     settings.instance = file.value("translation/instance", settings.instance).toString();
+    settings.pythonPath = file.value("offline/python").toString();
+    settings.packagesPath = file.value("offline/packages").toString();
+    settings.dictionaryPath = file.value("offline/dictionary").toString();
+    settings.useDictionary = file.value("offline/useDictionary", true).toBool();
     settings.dwellMs = file.value("hover/dwellMs", settings.dwellMs).toInt();
     settings.enabled = file.value("hover/enabled", settings.enabled).toBool();
     settings.tessdataPath = file.value("ocr/tessdataPath").toString();
     // Corrupt or hand-edited files must not enable capture with invalid settings.
     if (!validate(settings)) {
         settings.enabled = false;
+        if (settings.provider != "offline" && settings.provider != "mozhi") settings.provider = "offline";
         if (settings.target != "en" && settings.target != "zh-CN")
             settings.target = "zh-CN";
         if (!validInstance(settings.instance))
@@ -69,7 +100,12 @@ bool SettingsStore::save(const HoverSettings &settings, QString *error) const
     }
     QSettings file(m_fileName, QSettings::IniFormat);
     file.setValue("translation/target", settings.target);
+    file.setValue("translation/provider", settings.provider);
     file.setValue("translation/instance", settings.instance);
+    file.setValue("offline/python", settings.pythonPath);
+    file.setValue("offline/packages", settings.packagesPath);
+    file.setValue("offline/dictionary", settings.dictionaryPath);
+    file.setValue("offline/useDictionary", settings.useDictionary);
     file.setValue("hover/dwellMs", settings.dwellMs);
     file.setValue("hover/enabled", settings.enabled);
     file.setValue("ocr/tessdataPath", settings.tessdataPath);

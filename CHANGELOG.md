@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 — offline translation and screen regions
+
+- Offline is now the default: persistent Argos worker, two translation
+  directions, and optional CC-CEDICT word definitions/reverse lookup.
+- One-time, per-user CPU runtime/model/dictionary setup, preserving TLS
+  verification and dictionary/model notices; system Python is not modified.
+- Translation worker blocks network connections and never falls back online.
+- Wayland/X11 screenshot portal capture, local region preview, OCR, editable
+  source text and Ctrl+Enter translation. Desktop shortcuts can use `--capture`.
+- Wayland disables the unsupported automatic-hover checkbox; X11 hover remains.
+- Ubuntu 26.04 / Qt 6.10 build compatibility and native dependency calculation.
+- Added dictionary and portal/OCR/cropping/cancellation tests. Actual sentence
+  model checks remain blocked by cloud network policy; see docs/TESTING.md.
+
 ## 0.1.0 — initial MVP
 
 - X11 hover capture limited to the window under the pointer, with local

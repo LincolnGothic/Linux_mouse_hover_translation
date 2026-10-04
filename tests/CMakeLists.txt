@@ -10,4 +10,7 @@ target_link_libraries(test_hover PRIVATE hover_core Qt6::Test PkgConfig::XCB_XTE
 target_compile_definitions(test_hover PRIVATE APP_BINARY="$<TARGET_FILE:hover-translate>")
 add_dependencies(test_hover hover-translate)
 add_test(NAME hover_x11 COMMAND test_hover)
-set_tests_properties(core hover_x11 PROPERTIES TIMEOUT 60)
+add_executable(test_portal test_portal.cpp)
+target_link_libraries(test_portal PRIVATE hover_core Qt6::Test)
+add_test(NAME portal_capture COMMAND test_portal)
+set_tests_properties(core hover_x11 portal_capture PROPERTIES TIMEOUT 60)

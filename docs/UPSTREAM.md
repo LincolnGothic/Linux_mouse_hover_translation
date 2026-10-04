@@ -11,7 +11,7 @@ Every imported component is GPL-3.0-or-later.
 | Upstream file (under `src/`) | Local file (under `third_party/crow/`) | Changes dated 2026-10-04 |
 | --- | --- | --- |
 | `onlinetranslator.cpp` | `onlinetranslator.cpp` | None |
-| `onlinetranslator.h` | `onlinetranslator.h` | Removed an unused `QMediaPlayer` include to avoid an unnecessary Qt Multimedia dependency |
+| `onlinetranslator.h` | `onlinetranslator.h` | Removed an unused `QMediaPlayer` include; explicitly included `QObject` for Qt 6.10 compatibility |
 | `ocr/aocrprovider.h` | `aocrprovider.h` | None |
 | `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line geometry and confidence; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded |
 | `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line results and tracks the asynchronous job, language configuration and cancellation state |
@@ -30,7 +30,10 @@ New code provides the X11 hover policy and capture, constrained language
 selection, settings, non-focusable popup, short-lived Escape grab, request
 timeouts, cancellation, bounded in-memory cache, command-line tools and tests.
 The upstream translator retains its other engine code; this frontend selects
-only its Mozhi Google engine. No speech models, Crow icons, translations,
+its Mozhi Google engine when the user chooses online mode. New offline code
+uses a separate Argos/dictionary worker, with no changes to Crow's online
+engine protocol. New code also provides desktop-portal screenshot capture,
+region selection and editable text translation. No speech models, Crow icons, translations,
 screenshots, other third-party source or updater code are imported.
 
 Upstream's complete GPL text is retained as `LICENSE` and
