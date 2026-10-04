@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Upload verified preview assets
+
+on:
+  push:
+    branches: ['release-uploads/v*']
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify checksums and corresponding source against the version tag
+        shell: bash
+        run: |
+          sha256sum -c SHA256SUMS
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess, tarfile
+          from pathlib import Path
+          manifest = json.loads(Path('release-manifest.json').read_text())
+          tag = manifest['tag']
+          assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', tag), tag
+          assert os.environ['GITHUB_REF_NAME'] == 'release-uploads/' + tag
+          for name, digest in manifest['sha256'].items():
+              assert Path(name).name == name and name not in ('.', '..')
+              assert hashlib.sha256(Path(name).read_bytes()).hexdigest() == digest, name
+          subprocess.run(['git', 'fetch', 'origin', 'refs/tags/' + tag], check=True)
+          revision = subprocess.check_output(['git', 'rev-parse', 'FETCH_HEAD^{commit}'], text=True).strip()
+          assert revision == manifest['source_commit'], revision
+          expected = set(subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', revision], text=True).splitlines())
+          with tarfile.open(manifest['source_archive'], 'r:gz') as archive:
+              prefix = archive.getmembers()[0].name.split('/')[0] + '/'
+              files = {m.name[len(prefix):]: m for m in archive.getmembers() if m.isfile() and m.name.startswith(prefix)}
+              assert expected == set(files)
+              for name, member in files.items():
+                  assert archive.extractfile(member).read() == subprocess.check_output(['git', 'show', revision + ':' + name]), name
+          with open(os.environ['GITHUB_ENV'], 'a') as environment:
+              environment.write('PREVIEW_TAG=' + tag + '\n')
+          print(f'Verified all {len(expected)} corresponding-source files and asset hashes.')
+          PY
+      - name: Attach files and publish the preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$PREVIEW_TAG" --clobber *.deb *Source.tar.gz SHA256SUMS
+          gh release view "$PREVIEW_TAG" --json assets --jq '.assets | map(.name)'
+          gh release edit "$PREVIEW_TAG" --draft=false --prerelease --latest=false
