@@ -43,6 +43,7 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
     });
     connect(m_gnome, &GnomeHover::popupShown, this, &HoverController::popupShown);
     connect(m_gnome, &GnomeHover::availabilityChanged, this, &HoverController::availabilityChanged);
+    connect(m_popup,&TranslationPopup::dismissed,this,[this] { m_policy.dismiss(); invalidate(); });
     m_clock.start();
     m_poll.setInterval(50);
     connect(&m_poll, &QTimer::timeout, this, &HoverController::poll);
@@ -55,7 +56,16 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
     connect(m_ocr, &TesseractOcr::linesRecognized, this, [this](const QVector<OcrLine> &lines) {
         if (!m_haveOcr || !current(m_ocrGeneration)) return;
         m_haveOcr = false;
-        m_sourceText = HoverPolicy::textAt(lines, m_imagePointer, m_settings.textMode);
+        m_sourceText = HoverPolicy::textAt(lines, m_imagePointer, m_captureMode);
+        if (m_captureMode == "word") {
+            const auto word = m_dictionary.chineseAt(lines, m_imagePointer);
+            if (!word.isEmpty()) m_sourceText = word;
+        }
+        if (m_settings.highlightSource) {
+            auto boxes=HoverPolicy::sourceBounds(lines,m_imagePointer,m_sourceText);
+            for (auto &box:boxes) box.translate(m_cropOrigin);
+            m_highlight.showBoxes(boxes);
+        }
         const QString source = HoverPolicy::sourceLanguage(m_sourceText);
         if (m_sourceText.isEmpty() || source.isEmpty() || source == m_settings.target) {
             emit statusChanged(tr("Ready — hover over text in the other language."));
@@ -114,6 +124,7 @@ bool HoverController::configure(const HoverSettings &settings, QString *error)
     m_policy.setDwellMs(settings.dwellMs);
     m_cache.clear();
     m_settings = settings;
+    m_dictionary.load(settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
     QString problem;
     const bool valid = SettingsStore::validate(settings, &problem);
     const bool wayland = qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
@@ -170,12 +181,24 @@ void HoverController::invalidate()
     m_capturePending = false;
     m_ocr->cancel();
     m_translator->cancel();
-    m_popup->hide();
+    m_popup->dismiss(); m_highlight.hide(); m_popupGrace=-1;
     m_escape->release();
 }
 
 void HoverController::poll()
 {
+    if (m_popup->isVisible() && m_popup->pinned()) return;
+    const auto modifiers=QGuiApplication::queryKeyboardModifiers();
+    const auto effective = m_settings.temporaryModes && (modifiers & Qt::ShiftModifier)
+        ? ((modifiers & Qt::ControlModifier) ? QString("sentence") : QString("word")) : m_settings.textMode;
+    if (effective!=m_effectiveMode) { m_effectiveMode=effective; m_policy.reset(); invalidate(); }
+    if (m_popup->isVisible()) {
+        if (m_popup->pinned() || m_popup->frameGeometry().contains(QCursor::pos())) { m_popupGrace=-1; return; }
+        if (HoverPolicy::moved(QCursor::pos(),m_capturePointer)) {
+            if (m_popupGrace<0) m_popupGrace=m_clock.elapsed();
+            if (m_clock.elapsed()-m_popupGrace<350) return;
+        }
+    }
     const auto action = m_policy.update(QCursor::pos(), blocked(QCursor::pos()), m_clock.elapsed());
     if (action == HoverPolicy::Invalidated) invalidate();
     if (action == HoverPolicy::Capture) m_capturePending = true;
@@ -203,11 +226,12 @@ void HoverController::capture()
         emit statusChanged(tr("Could not capture this screen area."));
         return;
     }
+    m_captureMode=m_effectiveMode; m_cropOrigin=crop.topLeft();
     m_imagePointer = m_capturePointer - crop.topLeft();
     m_ocrGeneration = m_policy.generation();
     m_haveOcr = true;
     emit statusChanged(tr("Reading text under the pointer…"));
-    m_ocr->recognizeLayout(image, 96, m_settings.textMode == "sentence");
+    m_ocr->recognizeLayout(image, 96, m_captureMode == "sentence");
 }
 
 QString HoverController::cacheKey(const QString &text, const QString &source) const
@@ -220,6 +244,7 @@ QString HoverController::cacheKey(const QString &text, const QString &source) co
 
 void HoverController::showResult(const QString &text, bool error)
 {
+    m_popupGrace=-1;
     m_popup->showTranslation(m_capturePointer, m_sourceText, text, m_settings.target, error);
     m_escape->grab();
     emit statusChanged(error ? text : tr("Ready — move the pointer to translate more text."));

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "settings.h"
+#include "worddictionary.h"
 #include "tesseractocr.h"
 #include "translationservice.h"
 #include <QCache>
@@ -22,22 +23,26 @@ signals:
     void availabilityChanged();
 private slots:
     void capture(uint token, const QByteArray &png, double x, double y);
+    void captureMode(uint token, const QByteArray &png, double x, double y, const QString &mode);
     void invalidated(uint token);
     void problem(uint token, const QString &message);
 private:
-    struct Pending { QImage image; QPoint point; quint64 epoch; };
+    struct Pending { QImage image; QPoint point; quint64 epoch; QString mode; };
     void startPending();
     void cancel();
     void result(const QString &source, const QString &text, bool error = false);
     HoverSettings m_settings;
+    WordDictionary m_dictionary;
     TesseractOcr m_ocr;
     TranslationService m_translator;
     QDBusServiceWatcher m_watcher;
     QCache<QString, QString> m_cache{128};
     std::optional<Pending> m_pending;
     QPoint m_point;
+    QSize m_imageSize;
+    QString m_mode;
     QString m_source, m_key;
-    quint64 m_epoch = 0, m_ocrEpoch = 0;
+    quint64 m_epoch = 0, m_ocrEpoch = 0, m_configuration = 0;
     uint m_token = 0;
     bool m_enabled = false;
 };

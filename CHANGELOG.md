@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.1 — separate distant labels and improve word lookup
+
+- Large horizontal gaps split an OCR line into text runs in Line and Sentence
+  modes. Blank space between distant table cells does not select either cell.
+- Word is the default for new settings; saved mode choices are preserved.
+- Chinese Word lookup uses actual character boxes and longest known CC-CEDICT
+  matches. English reverse lookup handles common inflections and labels the
+  matched base word; exact entries take priority. Coverage is still limited.
+- Optional source highlighting and temporary Shift → Word / Ctrl+Shift → Sentence
+  overrides, restoring the saved mode when released.
+- Popup Copy translation, Pin/Unpin and Close actions. A short pointer-movement
+  grace period allows entry; pinned popups stop subsequent capture until closed.
+  Only explicit Copy writes the clipboard; no persistent history is saved.
+- GNOME extension version 4 is required. Reinstall it through Set up GNOME hover
+  and sign out/in after upgrading. Old extensions are paused with an upgrade hint.
+- Added scaled gap-selection, actual Chinese character/dictionary OCR, English
+  inflection, X11 Copy/Pin and native GNOME modifier/highlight/control tests.
+
 ## 0.4.0 — word, line and bounded sentence hover
 
 - Added saved **Hover text** modes: Word, Line and Sentence. Line remains the

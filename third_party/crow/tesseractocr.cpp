@@ -140,8 +140,22 @@ void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraph
                     if (wordText && wordIterator.BoundingBox(tesseract::RIL_WORD, &left, &top, &right, &bottom)) {
                         const auto word = QString::fromUtf8(wordText.get()).simplified();
                         const int offset = line.text.indexOf(word, cursor);
-                        line.words.append({word, bounds(left, top, right, bottom),
-                                           wordIterator.Confidence(tesseract::RIL_WORD), offset});
+                        OcrWord recognized{word, bounds(left, top, right, bottom),
+                                           wordIterator.Confidence(tesseract::RIL_WORD), offset, {}};
+                        tesseract::ResultIterator symbolIterator(wordIterator);
+                        int symbolCursor = qMax(0,offset);
+                        do {
+                            const std::unique_ptr<char[]> symbolText(symbolIterator.GetUTF8Text(tesseract::RIL_SYMBOL));
+                            if (symbolText && symbolIterator.BoundingBox(tesseract::RIL_SYMBOL,&left,&top,&right,&bottom)) {
+                                const auto symbol = QString::fromUtf8(symbolText.get());
+                                const int symbolOffset = line.text.indexOf(symbol,symbolCursor);
+                                recognized.symbols.append({symbol,bounds(left,top,right,bottom),
+                                    symbolIterator.Confidence(tesseract::RIL_SYMBOL),symbolOffset});
+                                if (symbolOffset >= 0) symbolCursor = symbolOffset + symbol.size();
+                            }
+                            if (symbolIterator.IsAtFinalElement(tesseract::RIL_WORD,tesseract::RIL_SYMBOL)) break;
+                        } while (symbolIterator.Next(tesseract::RIL_SYMBOL));
+                        line.words.append(recognized);
                         if (offset >= 0) cursor = offset + word.size();
                     }
                     if (wordIterator.IsAtFinalElement(tesseract::RIL_TEXTLINE, tesseract::RIL_WORD)) break;

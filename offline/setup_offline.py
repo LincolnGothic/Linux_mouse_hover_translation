@@ -17,7 +17,7 @@ import zipfile
 
 INDEX = "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json"
 DICTIONARY = "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
-USER_AGENT = "HoverTranslate/0.4.0 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"
+USER_AGENT = "HoverTranslate/0.4.1 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"
 
 
 def open_download(url, timeout=60):

@@ -1,8 +1,8 @@
 {
   "uuid": "hover-translate@lincolngothic.github.io",
   "name": "Hover Translate",
-  "description": "Translate the line under the pointer locally with the Hover Translate desktop app.",
+  "description": "Translate words and sentences under the pointer locally with the Hover Translate desktop app.",
   "shell-version": ["50"],
-  "version": 3,
+  "version": 4,
   "url": "https://github.com/LincolnGothic/Linux_mouse_hover_translation"
 }

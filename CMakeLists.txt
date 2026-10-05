@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 cmake_minimum_required(VERSION 3.22)
-project(hover_translate VERSION 0.4.0 LANGUAGES CXX)
+project(hover_translate VERSION 0.4.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -19,6 +19,8 @@ add_library(hover_core STATIC
     third_party/crow/aocrprovider.h
     third_party/crow/tesseractocr.cpp
     third_party/crow/tesseractocr.h
+    src/sourcehighlight.cpp src/sourcehighlight.h
+    src/worddictionary.cpp src/worddictionary.h
     src/settings.cpp src/settings.h
     src/hoverpolicy.cpp src/hoverpolicy.h
     src/translationservice.cpp src/translationservice.h

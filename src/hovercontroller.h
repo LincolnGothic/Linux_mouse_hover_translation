@@ -3,11 +3,13 @@
 #pragma once
 #include "hoverpolicy.h"
 #include "settings.h"
+#include "worddictionary.h"
 #include "translationpopup.h"
 #include "tesseractocr.h"
 #include "translationservice.h"
 #include "x11escape.h"
 #include "gnomehover.h"
+#include "sourcehighlight.h"
 #include <QCache>
 #include <QElapsedTimer>
 #include <QPointer>
@@ -37,9 +39,14 @@ private:
     void showResult(const QString &text, bool error = false);
     HoverPolicy m_policy;
     HoverSettings m_settings;
+    WordDictionary m_dictionary;
     TesseractOcr *m_ocr;
     TranslationService *m_translator;
     TranslationPopup *m_popup;
+    SourceHighlight m_highlight;
+    QString m_captureMode, m_effectiveMode;
+    QPoint m_cropOrigin;
+    qint64 m_popupGrace = -1;
     X11Escape *m_escape;
     GnomeHover *m_gnome;
     QTimer m_poll;

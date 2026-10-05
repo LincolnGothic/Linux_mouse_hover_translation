@@ -4,6 +4,7 @@
 #include <QChar>
 #include <QRegularExpression>
 #include <limits>
+#include <algorithm>
 
 bool HoverPolicy::moved(QPoint first, QPoint second)
 {
@@ -49,8 +50,62 @@ QString HoverPolicy::sourceLanguage(const QString &text)
     return han ? QStringLiteral("zh-CN") : latin ? QStringLiteral("en") : QString();
 }
 
-QString HoverPolicy::lineAt(const QVector<OcrLine> &lines, QPoint point, float minimumConfidence)
+QVector<OcrLine> HoverPolicy::textRuns(const QVector<OcrLine> &lines)
 {
+    QVector<OcrLine> runs;
+    for (const auto &line : lines) {
+        if (line.words.size() < 2) { runs.append(line); continue; }
+        auto words = line.words;
+        std::sort(words.begin(), words.end(), [](const auto &a, const auto &b) { return a.bounds.left() < b.bounds.left(); });
+        QVector<double> widths;
+        for (const auto &word : words) if (!word.text.isEmpty()) widths.append(double(word.bounds.width()) / word.text.size());
+        std::sort(widths.begin(), widths.end());
+        const double letterWidth = widths.isEmpty() ? 0 : widths[widths.size()/2];
+        const int maximumGap = qMax(24, qMax(line.bounds.height() * 2, int(letterWidth * 4)));
+        bool separated = false;
+        for (int i = 1; i < words.size(); ++i)
+            separated |= words[i].bounds.left() - words[i-1].bounds.right() - 1 > maximumGap;
+        if (!separated) { runs.append(line); continue; }
+        int begin = 0;
+        auto append = [&](int end) {
+            OcrLine run; run.confidence = line.confidence; run.block = line.block; run.paragraph = line.paragraph;
+            const int offset = words[begin].offset;
+            const int finish = words[end-1].offset + words[end-1].text.size();
+            bool validOffsets = offset >= 0 && finish <= line.text.size();
+            int previous = offset;
+            for (int i = begin; i < end; ++i) {
+                validOffsets &= words[i].offset >= previous;
+                previous = words[i].offset + words[i].text.size();
+            }
+            if (validOffsets) run.text = line.text.mid(offset, finish-offset);
+            for (int i = begin; i < end; ++i) {
+                auto word = words[i];
+                if (!validOffsets) {
+                    if (!run.text.isEmpty()) run.text += ' ';
+                    word.offset = run.text.size(); run.text += word.text;
+                } else {
+                    word.offset -= offset;
+                    for (auto &symbol : word.symbols) if (symbol.offset >= 0) symbol.offset -= offset;
+                }
+                run.words.append(word); run.bounds = run.bounds.united(word.bounds);
+            }
+            runs.append(run);
+        };
+        for (int i = 1; i < words.size(); ++i) if (words[i].bounds.left() - words[i-1].bounds.right() - 1 > maximumGap) {
+            append(i); begin = i;
+        }
+        append(words.size());
+    }
+    // Runs from adjacent table cells may be interleaved in OCR reading order.
+    std::stable_sort(runs.begin(), runs.end(), [](const auto &a, const auto &b) {
+        return a.bounds.center().y() < b.bounds.center().y();
+    });
+    return runs;
+}
+
+QString HoverPolicy::lineAt(const QVector<OcrLine> &input, QPoint point, float minimumConfidence)
+{
+    const auto lines = textRuns(input);
     QString choice;
     int bestDistance = std::numeric_limits<int>::max();
     for (const auto &line : lines) {
@@ -67,9 +122,10 @@ QString HoverPolicy::lineAt(const QVector<OcrLine> &lines, QPoint point, float m
     return choice;
 }
 
-QString HoverPolicy::textAt(const QVector<OcrLine> &lines, QPoint point, const QString &mode, float minimumConfidence)
+QString HoverPolicy::textAt(const QVector<OcrLine> &input, QPoint point, const QString &mode, float minimumConfidence)
 {
-    if (mode == "line") return lineAt(lines, point, minimumConfidence);
+    if (mode == "line") return lineAt(input, point, minimumConfidence);
+    const auto lines = textRuns(input);
     int anchor = -1, distance = std::numeric_limits<int>::max();
     for (int i = 0; i < lines.size(); ++i) {
         const auto &line = lines[i];
@@ -155,4 +211,53 @@ QString HoverPolicy::textAt(const QVector<OcrLine> &lines, QPoint point, const Q
         if (last - first + 1 == 3 || last + 1 >= lines.size() || !adjacent(last, last + 1)) return fallback();
         append(++last);
     }
+}
+
+QVector<QRect> HoverPolicy::sourceBounds(const QVector<OcrLine> &lines, QPoint point, const QString &text)
+{
+    const auto runs = textRuns(lines);
+    const OcrLine *anchor = nullptr;
+    for (const auto &run : runs) if (run.bounds.adjusted(-1,-2,1,2).contains(point)) { anchor = &run; break; }
+    if (!anchor || text.isEmpty()) return {};
+    QString haystack, needle; QVector<QRect> characters;
+    for (const auto ch:text) if (!ch.isSpace() && ch != '-') needle += ch;
+    for (const auto &run:runs) {
+        if (&run != anchor && (run.block != anchor->block || run.paragraph != anchor->paragraph
+            || run.block < 0 || qAbs(run.bounds.left()-anchor->bounds.left())>anchor->bounds.height()*2
+            || qAbs(run.bounds.center().y()-anchor->bounds.center().y())>anchor->bounds.height()*6)) continue;
+        for (int i=0;i<run.text.size();++i) {
+            const auto ch=run.text[i]; if (ch.isSpace() || ch=='-') continue;
+            QRect box;
+            for (const auto &word:run.words) if (word.offset>=0 && i>=word.offset && i<word.offset+word.text.size()) {
+                box=word.bounds;
+                for (const auto &symbol:word.symbols) if (symbol.offset==i) { box=symbol.bounds; break; }
+                break;
+            }
+            haystack += ch; characters.append(box);
+        }
+    }
+    int position=-1;
+    for (int from=0;from<haystack.size();) {
+        const int found=haystack.indexOf(needle,from); if (found<0) break;
+        bool containsPointer=false; QRect row;
+        for (int i=found;i<found+needle.size();++i) {
+            const auto box=characters[i]; if (box.isEmpty()) continue;
+            if (!row.isEmpty() && qAbs(row.center().y()-box.center().y())>qMax(2,box.height()/2)) {
+                containsPointer |= row.adjusted(-1,-2,1,2).contains(point); row={};
+            }
+            row=row.united(box);
+        }
+        containsPointer |= row.adjusted(-1,-2,1,2).contains(point);
+        if (containsPointer) { position=found; break; }
+        from=found+1;
+    }
+    QVector<QRect> boxes;
+    if (position<0) return text==anchor->text.simplified() ? QVector<QRect>{anchor->bounds} : boxes;
+    for (int i=position;i<position+needle.size();++i) {
+        const auto box=characters[i]; if (box.isEmpty()) continue;
+        if (!boxes.isEmpty() && qAbs(boxes.last().center().y()-box.center().y())<=qMax(2,box.height()/3)
+            && box.left()<=boxes.last().right()+4) boxes.last()=boxes.last().united(box);
+        else boxes.append(box);
+    }
+    return boxes;
 }

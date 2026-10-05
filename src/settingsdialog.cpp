@@ -14,12 +14,17 @@
 #include <QSpinBox>
 #include <QTextBrowser>
 #include <QVBoxLayout>
+#include <QScrollArea>
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 {
     setWindowTitle(tr("Hover Translate"));
     setMinimumWidth(540);
-    auto *layout = new QVBoxLayout(this);
+    resize(650,780);
+    auto *outer = new QVBoxLayout(this);
+    auto *scroll = new QScrollArea(this); scroll->setWidgetResizable(true); scroll->setFrameShape(QFrame::NoFrame);
+    auto *content = new QWidget(this); scroll->setWidget(content); outer->addWidget(scroll);
+    auto *layout = new QVBoxLayout(content);
     layout->setContentsMargins(26, 24, 26, 20);
     layout->setSpacing(18);
     auto *title = new QLabel(tr("Translate where you point"), this);
@@ -43,10 +48,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     m_textMode = new QComboBox(this);
     m_textMode->setObjectName("textModeComboBox");
     m_textMode->addItem(tr("Word — under the pointer"), "word");
-    m_textMode->addItem(tr("Line — current visual line"), "line");
+    m_textMode->addItem(tr("Line — nearby text on this line"), "line");
     m_textMode->addItem(tr("Sentence — up to 3 nearby lines"), "sentence");
-    m_textMode->setToolTip(tr("Sentence mode stays within one paragraph and column, up to 3 lines and 300 characters. If boundaries are uncertain, it uses the current line. Chinese word boundaries depend on OCR."));
+    m_textMode->setToolTip(tr("Sentence mode stays within one paragraph and column, up to 3 lines and 300 characters. If boundaries are uncertain, it uses the current line. Large horizontal gaps separate text. Chinese lookup uses CC-CEDICT when available."));
     form->addRow(tr("Hover text"), m_textMode);
+    m_highlight = new QCheckBox(tr("Highlight selected source text"), this);
+    m_temporary = new QCheckBox(tr("Hold Shift for Word; Ctrl+Shift for Sentence"), this);
+    form->addRow(m_highlight); form->addRow(m_temporary);
     m_provider = new QComboBox(this);
     m_provider->setObjectName("providerComboBox");
     m_provider->addItem(tr("Offline — Argos / dictionary"), "offline");
@@ -117,7 +125,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.4.0</h2>"
+        browser->setHtml(tr("<h2>Hover Translate 0.4.1</h2>"
             "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"
@@ -152,6 +160,8 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 void SettingsDialog::setSettings(const HoverSettings &settings)
 {
     m_enabled->setChecked(settings.enabled);
+    m_highlight->setChecked(settings.highlightSource);
+    m_temporary->setChecked(settings.temporaryModes);
     m_target->setCurrentIndex(settings.target == "en" ? 1 : 0);
     m_provider->setCurrentIndex(settings.provider == "mozhi" ? 1 : 0);
     m_textMode->setCurrentIndex(m_textMode->findData(settings.textMode));
@@ -168,6 +178,8 @@ HoverSettings SettingsDialog::settings() const
 {
     HoverSettings settings;
     settings.enabled = m_enabled->isChecked();
+    settings.highlightSource = m_highlight->isChecked();
+    settings.temporaryModes = m_temporary->isChecked();
     settings.target = m_target->currentData().toString();
     settings.provider = m_provider->currentData().toString();
     settings.textMode = m_textMode->currentData().toString();

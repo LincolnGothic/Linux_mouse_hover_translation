@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("HoverTranslate");
     app.setOrganizationName("LincolnGothic");
-    app.setApplicationVersion("0.4.0");
+    app.setApplicationVersion("0.4.1");
     app.setDesktopFileName("io.github.LincolnGothic.HoverTranslate");
     app.setWindowIcon(QIcon(":/icons/hover-translate.svg"));
     QNetworkProxyFactory::setUseSystemConfiguration(true);

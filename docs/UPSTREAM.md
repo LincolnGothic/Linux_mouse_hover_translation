@@ -13,8 +13,8 @@ Every imported component is GPL-3.0-or-later.
 | `onlinetranslator.cpp` | `onlinetranslator.cpp` | None |
 | `onlinetranslator.h` | `onlinetranslator.h` | Removed an unused `QMediaPlayer` include; explicitly included `QObject` for Qt 6.10 compatibility |
 | `ocr/aocrprovider.h` | `aocrprovider.h` | None |
-| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line/word geometry, confidence and paragraph IDs; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded; small/dark-text normalization, padding, scaling and segmentation retry with original coordinates |
-| `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line/word results and optional paragraph-layout recognition and tracks the asynchronous job, language configuration and cancellation state |
+| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line/word/character geometry, confidence and paragraph IDs; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded; small/dark-text normalization, padding, scaling and segmentation retry with original coordinates |
+| `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line/word/character results and optional paragraph-layout recognition and tracks the asynchronous job, language configuration and cancellation state |
 
 Original SHA-256 hashes before modifications:
 

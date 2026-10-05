@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.4.0** 新增单词、当前行及有范围限制的句子模式。通过随附的
+开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.4.1** 改进单词、当前行及有范围限制的句子模式，分开距离较远的表格栏位。通过随附的
 **GNOME 50 扩展**，支持 Ubuntu 26.04 默认 Wayland 桌面的自动悬停翻译。
 本地 Tesseract OCR、Argos 句子模型和可选 CC-CEDICT 词典不需要 API 密钥。
 采用 GPL-3.0-or-later，保留 Crow Translate 版权及修改声明。
@@ -13,12 +13,12 @@
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.4.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.0)
+从 [v0.4.1 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.1)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 
 ```bash
-sudo apt install ./hover-translate_0.4.0_amd64.deb
+sudo apt install ./hover-translate_0.4.1_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -47,16 +47,24 @@ KDE 和其他 Wayland 桌面需要单独的集成，本扩展不支持。
 
 在 **Hover text** 中选择后点击 **Apply**：
 
-- **Word**：只翻译鼠标下的 OCR 单词，去掉外围标点。中文分词目前依赖 OCR，
-  有时只识别一个汉字，尚未实现词典辅助的中文分词。
-- **Line**：翻译当前视觉行，保留原有行为，也是默认设置。
-- **Sentence**：按标点拼接同一段落、同一列的邻近折行，最多 **3 行、300 字符**。
-  遇到段落、列或较大的行间隔停止拼接；无法确定完整句子时退回当前行。
-  本模式不选择超过 300 字符的单行。缩写、标点和 OCR 错误仍可能影响分句。
-  弹窗显示实际选择的原文；较长内容建议手动框选。
+- **Word**：默认只翻译鼠标下的单词。已有设置的模式保留。
+  中文使用字符位置和 CC-CEDICT 匹配包含鼠标所指字符的最长已知词；
+  没有匹配时仍使用 OCR 的词元，不保证所有中文语境都能正确分词。
+- **Line**：只翻译当前行内相邻的文字；较大的水平空隙分开处理，
+  如表格的 “Mode” 与 “What it translates” 不会合并。
+- **Sentence**：同一段落、同一列的折行最多拼接 3 行、300 字符，
+  遇到大空隙或不确定的边界退回当前文字段，不扩展为整段。
 
-已正常使用 0.3.0 的用户只需退出旧进程、安装 0.4.0 后重新启动。
-模型和设置保留，扩展未改动，本次升级不需要重新安装扩展或注销。
+可勾选原文高亮；按住 **Shift** 临时查单词，**Ctrl+Shift** 临时翻译句子，
+松开后恢复保存的模式。这些临时快捷方式可以在设置里关闭。
+移入弹窗后可点击 **Copy translation**、**Pin/Unpin** 或 **Close**。
+固定弹窗会暂停后续悬停查询，关闭、Esc、暂停或退出后恢复/停止。
+只有点击复制才会写入剪贴板；不保存永久翻译历史。
+
+升级到 0.4.1 需要更新 GNOME 扩展（version 4）：退出旧进程、安装新包后，
+点击 **Set up GNOME hover**，注销并重新登录。模型和设置保留。
+旧扩展会被暂停并提示升级。英文词典查询新增常见词形还原，如 running → run，
+但 CC-CEDICT 的英文反查覆盖范围仍有限，不能称为完整英汉词典。
 
 ## 截图、词典与隐私
 
@@ -94,6 +102,6 @@ bash tools/build-ubuntu26.04.sh --model-check
 详细证据及限制见 [docs/TESTING.md](docs/TESTING.md)。
 
 分发二进制时同时提供完整对应源码，包括扩展及构建、安装脚本。
-本版对应 `hover-translate-0.4.0-Source.tar.gz`。
+本版对应 `hover-translate-0.4.1-Source.tar.gz`。
 版权和许可见 [NOTICE.md](NOTICE.md)，上游来源见
 [docs/UPSTREAM.md](docs/UPSTREAM.md)。

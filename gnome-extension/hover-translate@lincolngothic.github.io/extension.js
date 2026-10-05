@@ -14,11 +14,15 @@ const SERVICE = 'io.github.LincolnGothic.HoverTranslate.Gnome';
 const PATH = '/io/github/LincolnGothic/HoverTranslate/Gnome';
 const XML = `<node><interface name="${SERVICE}">
   <method name="Configure"><arg type="b" direction="in"/><arg type="i" direction="in"/></method>
+  <method name="ConfigureOptions"><arg type="b" direction="in"/><arg type="b" direction="in"/></method>
+  <method name="Selection"><arg type="u" direction="in"/><arg type="ad" direction="in"/></method>
+  <method name="InteractionState"><arg type="b" direction="out"/><arg type="ad" direction="out"/><arg type="u" direction="out"/><arg type="b" direction="out"/><arg type="s" direction="out"/></method>
   <method name="Result"><arg type="u" direction="in"/><arg type="s" direction="in"/>
     <arg type="s" direction="in"/><arg type="b" direction="in"/></method>
   <method name="GetStatus"><arg type="b" direction="out"/><arg type="u" direction="out"/>
     <arg type="b" direction="out"/><arg type="s" direction="out"/><arg type="s" direction="out"/>
     <arg type="i" direction="out"/><arg type="i" direction="out"/></method>
+  <signal name="CaptureMode"><arg type="u"/><arg type="ay"/><arg type="d"/><arg type="d"/><arg type="s"/></signal>
   <signal name="Capture"><arg type="u"/><arg type="ay"/><arg type="d"/><arg type="d"/></signal>
   <signal name="Invalidated"><arg type="u"/></signal>
   <signal name="Problem"><arg type="u"/><arg type="s"/></signal>
@@ -38,6 +42,12 @@ export default class HoverTranslateExtension extends Extension {
         this._sequence = 0;
         this._capturing = false;
         this._escape = 0;
+        this._pinned = false;
+        this._grace = 0;
+        this._highlights = [];
+        this._highlightEnabled = true;
+        this._temporary = true;
+        this._override = "";
         this._tracker = new HoverTracker();
         this._popup = new St.BoxLayout({vertical: true, reactive: true,
             visible: false, style_class: 'hover-translate-popup'});
@@ -48,6 +58,15 @@ export default class HoverTranslateExtension extends Extension {
             label.clutter_text.ellipsize = 0;
             this._popup.add_child(label);
         }
+        const actions = new St.BoxLayout({style_class: 'hover-translate-actions'});
+        this._copy = new St.Button({label: 'Copy translation', can_focus: false});
+        this._pin = new St.Button({label: 'Pin', can_focus: false});
+        this._close = new St.Button({label: 'Close', can_focus: false});
+        for (const button of [this._copy,this._pin,this._close]) actions.add_child(button);
+        this._popup.add_child(actions);
+        this._copy.connect('clicked', () => { St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD,this._translation.get_text()); this._copy.set_label('Copied'); });
+        this._pin.connect('clicked', () => { this._pinned = !this._pinned; this._pin.set_label(this._pinned ? 'Unpin' : 'Pin'); });
+        this._close.connect('clicked', () => { this._tracker.dismiss(); this._invalidate(); });
         Main.layoutManager.addChrome(this._popup, {trackFullscreen: false});
         this._dbus = Gio.DBusExportedObject.wrapJSObject(XML, this);
         this._dbus.export(Gio.DBus.session, PATH);
@@ -60,6 +79,8 @@ export default class HoverTranslateExtension extends Extension {
                 event.get_key_symbol() === Clutter.KEY_Escape) {
                 this._tracker.dismiss();
                 this._invalidate();
+            } else if (this._popup.visible && this._insidePopup(global.get_pointer())) {
+                return Clutter.EVENT_PROPAGATE;
             } else if (event.type() === Clutter.EventType.SCROLL ||
                 event.type() === Clutter.EventType.BUTTON_PRESS) {
                 this._tracker.reset();
@@ -105,6 +126,60 @@ export default class HoverTranslateExtension extends Extension {
         invocation.return_value(null);
     }
 
+    ConfigureOptionsAsync([highlight, temporary], invocation) {
+        if (invocation.get_sender() !== this._owner && this._enabled) {
+            invocation.return_dbus_error(`${SERVICE}.Denied`, 'Only the connected app can change options.'); return;
+        }
+        this._highlightEnabled = highlight; this._temporary = temporary;
+        if (!highlight) this._clearHighlights();
+        invocation.return_value(null);
+    }
+
+    SelectionAsync([sequence, rectangles], invocation) {
+        if (invocation.get_sender() !== this._owner) {
+            invocation.return_dbus_error(`${SERVICE}.Denied`, 'Only the connected app can select text.'); return;
+        }
+        invocation.return_value(null);
+        if (!this._enabled || !this._highlightEnabled || sequence !== this._sequence || !this._crop || this._blocked()) return;
+        this._clearHighlights();
+        if (rectangles.length > 1024 || rectangles.length % 4 || !rectangles.every(Number.isFinite)) return;
+        for (let i=0;i<rectangles.length;i+=4) {
+            const [x,y,w,h] = rectangles.slice(i,i+4);
+            if (x<0 || y<0 || w<=0 || h<=0 || x+w>1.001 || y+h>1.001) continue;
+            const box = new St.Widget({reactive:false,style_class:'hover-translate-highlight',
+                x:this._crop.x+x*this._crop.width,y:this._crop.y+y*this._crop.height,
+                width:w*this._crop.width,height:h*this._crop.height});
+            Main.layoutManager.addChrome(box,{trackFullscreen:false}); this._highlights.push(box);
+        }
+    }
+
+    InteractionStateAsync(_params, invocation) {
+        if (this._owner && invocation.get_sender() !== this._owner) {
+            invocation.return_dbus_error(`${SERVICE}.Denied`, 'Only the connected app can read popup state.'); return;
+        }
+        const rectangles=[];
+        for (const button of [this._copy,this._pin,this._close]) {
+            const [x,y]=button.get_transformed_position(); const [w,h]=button.get_transformed_size(); rectangles.push(x,y,w,h);
+        }
+        const point=global.get_pointer();
+        let actor=global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE,point[0],point[1]), hit='other';
+        while (actor) {
+            if (actor===this._copy) { hit='copy'; break; }
+            if (actor===this._pin) { hit='pin'; break; }
+            if (actor===this._close) { hit='close'; break; }
+            actor=actor.get_parent();
+        }
+        invocation.return_value(new GLib.Variant('(badubs)',[this._pinned,rectangles,this._highlights.length,this._copy.get_label()==='Copied',hit]));
+    }
+
+    _insidePopup(point) {
+        return contains({x:this._popup.x,y:this._popup.y,width:this._popup.width,height:this._popup.height},point);
+    }
+
+    _clearHighlights() {
+        for (const box of this._highlights) box.destroy(); this._highlights=[];
+    }
+
     ResultAsync([sequence, source, translation, error], invocation) {
         if (invocation.get_sender() !== this._owner) {
             invocation.return_dbus_error(`${SERVICE}.Denied`, 'Only the connected app can supply translations.');
@@ -143,7 +218,8 @@ export default class HoverTranslateExtension extends Extension {
 
     _invalidate() {
         this._sequence = (this._sequence + 1) >>> 0;
-        this._popup.hide();
+        this._popup.hide(); this._pinned=false; this._pin.set_label('Pin'); this._grace=0; this._crop=null;
+        this._clearHighlights();
         this._source.set_text('');
         this._translation.set_text('');
         this._releaseEscape();
@@ -164,8 +240,10 @@ export default class HoverTranslateExtension extends Extension {
             return true;
         const pointer = global.get_pointer();
         const mask = Clutter.ModifierType.BUTTON1_MASK | Clutter.ModifierType.BUTTON2_MASK |
-            Clutter.ModifierType.BUTTON3_MASK | Clutter.ModifierType.CONTROL_MASK |
+            Clutter.ModifierType.BUTTON3_MASK |
             Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.SUPER_MASK;
+        if ((pointer[2] & Clutter.ModifierType.CONTROL_MASK) &&
+            !(this._temporary && (pointer[2] & Clutter.ModifierType.SHIFT_MASK))) return true;
         if (pointer[2] & mask)
             return true;
         if (this._popup.visible && contains({x: this._popup.x, y: this._popup.y,
@@ -179,7 +257,24 @@ export default class HoverTranslateExtension extends Extension {
     _poll() {
         if (!this._enabled)
             return;
-        const point = global.get_pointer().slice(0, 2);
+        const pointer = global.get_pointer();
+        const point = pointer.slice(0, 2);
+        if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter || Main.overview.visible || Main.modalCount > 0 || Main.screenshotUI?.visible) {
+            if (this._popup.visible || this._highlights.length) this._invalidate();
+            this._tracker.reset(); return;
+        }
+        if (this._popup.visible && this._pinned) return;
+        const override = this._temporary && (pointer[2] & Clutter.ModifierType.SHIFT_MASK)
+            ? ((pointer[2] & Clutter.ModifierType.CONTROL_MASK) ? 'sentence' : 'word') : '';
+        if (override !== this._override) { this._override=override; this._tracker.reset(); this._invalidate(); }
+        if (this._popup.visible) {
+            if (this._pinned || this._insidePopup(point)) { this._grace=0; return; }
+            if (moved(this._tracker.anchor,point)) {
+                const now=GLib.get_monotonic_time()/1000;
+                if (!this._grace) this._grace=now;
+                if (now-this._grace<350) return;
+            }
+        }
         const action = this._tracker.update(point, this._blocked(), GLib.get_monotonic_time() / 1000);
         if (action === 'invalidate')
             this._invalidate();
@@ -197,6 +292,8 @@ export default class HoverTranslateExtension extends Extension {
             const crop = captureArea(point, Main.layoutManager.monitors, this._windowAt(point)?.get_frame_rect());
             if (!crop || crop.width < 1 || crop.height < 1)
                 return;
+            this._crop=crop;
+            const override=this._override;
             const shooter = new Shell.Screenshot();
             await shooter.screenshot_area(crop.x, crop.y, crop.width, crop.height, stream);
             stream.close(null);
@@ -205,8 +302,8 @@ export default class HoverTranslateExtension extends Extension {
                 return;
             const data = stream.steal_as_bytes().get_data();
             // Images stay in memory. No screenshot file or clipboard write.
-            this._dbus.emit_signal('Capture', new GLib.Variant('(uaydd)',
-                [sequence, data, (point[0] - crop.x) / crop.width, (point[1] - crop.y) / crop.height]));
+            this._dbus.emit_signal('CaptureMode', new GLib.Variant('(uaydds)',
+                [sequence, data, (point[0] - crop.x) / crop.width, (point[1] - crop.y) / crop.height,override]));
         } catch (error) {
             if (lifetime === this._lifetime && sequence === this._sequence) this._fail(error);
         } finally {
@@ -217,6 +314,7 @@ export default class HoverTranslateExtension extends Extension {
     }
 
     _show(source, translation, error) {
+        this._grace=0; this._copy.set_label('Copy translation');
         this._source.set_text(source.slice(0, 1000));
         this._translation.set_text(translation.slice(0, 4000));
         if (error)
@@ -266,6 +364,7 @@ export default class HoverTranslateExtension extends Extension {
         Gio.bus_unown_name(this._name);
         this._dbus.unexport();
         this._dbus = null;
+        this._clearHighlights();
         this._popup.destroy();
     }
 }

@@ -6,11 +6,18 @@
 #include <QString>
 #include <QVector>
 
+struct OcrSymbol {
+    QString text;
+    QRect bounds;
+    float confidence = 0;
+    int offset = -1;
+};
 struct OcrWord {
     QString text;
     QRect bounds;
     float confidence = 0;
     int offset = -1;
+    QVector<OcrSymbol> symbols;
 };
 struct OcrLine {
     QString text;
@@ -37,6 +44,8 @@ public:
     QPoint anchor() const { return m_anchor; }
     static bool moved(QPoint first, QPoint second);
     static QString sourceLanguage(const QString &text);
+    static QVector<OcrLine> textRuns(const QVector<OcrLine> &lines);
+    static QVector<QRect> sourceBounds(const QVector<OcrLine> &lines, QPoint point, const QString &text);
     static QString lineAt(const QVector<OcrLine> &lines, QPoint point, float minimumConfidence = 50);
     static QString textAt(const QVector<OcrLine> &lines, QPoint point, const QString &mode, float minimumConfidence = 50);
 private:

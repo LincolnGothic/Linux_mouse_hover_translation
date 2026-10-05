@@ -27,6 +27,7 @@ signals:
 private:
     QCheckBox *m_enabled;
     QCheckBox *m_useDictionary;
+    QCheckBox *m_highlight, *m_temporary;
     QComboBox *m_target;
     QComboBox *m_provider;
     QComboBox *m_textMode;

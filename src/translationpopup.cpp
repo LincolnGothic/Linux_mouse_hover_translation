@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "translationpopup.h"
 #include <QGuiApplication>
+#include <QClipboard>
+#include <QPushButton>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QScreen>
 #include <QVBoxLayout>
@@ -11,7 +14,7 @@ TranslationPopup::TranslationPopup()
 {
     setObjectName("translationPopup");
     setAttribute(Qt::WA_ShowWithoutActivating);
-    setAttribute(Qt::WA_TransparentForMouseEvents);
+
     setFocusPolicy(Qt::NoFocus);
     setFixedWidth(390);
     setStyleSheet("QFrame#translationPopup { background: #f7faf9; border: 1px solid #b8d1c8; border-radius: 10px; }"
@@ -25,18 +28,29 @@ TranslationPopup::TranslationPopup()
     m_original->setStyleSheet("color: #60756d;");
     m_translation = new QLabel(this);
     m_translation->setStyleSheet("font-size: 17px; font-weight: 500;");
-    m_hint = new QLabel(tr("Move the pointer or press Esc to dismiss"), this);
+    m_hint = new QLabel(tr("Move into this popup to copy or pin. Esc closes it."), this);
     m_hint->setStyleSheet("font-size: 11px; color: #70827b;");
     for (auto *label : {m_direction, m_original, m_translation, m_hint}) {
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
         layout->addWidget(label);
     }
+    auto *actions = new QHBoxLayout;
+    auto *copy = new QPushButton(tr("Copy translation"),this); copy->setObjectName("copyTranslationButton");
+    m_pin = new QPushButton(tr("Pin"),this); m_pin->setObjectName("pinTranslationButton"); m_pin->setCheckable(true);
+    auto *close = new QPushButton(tr("Close"),this); close->setObjectName("closeTranslationButton");
+    for (auto *button:{copy,m_pin,close}) { button->setFocusPolicy(Qt::NoFocus); actions->addWidget(button); }
+    layout->addLayout(actions);
+    connect(copy,&QPushButton::clicked,this,[this] { QGuiApplication::clipboard()->setText(m_translation->text()); });
+    connect(m_pin,&QPushButton::toggled,this,[this](bool pinned) { m_pinned=pinned; m_pin->setText(pinned?tr("Unpin"):tr("Pin")); });
+    connect(close,&QPushButton::clicked,this,[this] { dismiss(); emit dismissed(); });
+
 }
 
 void TranslationPopup::showTranslation(QPoint pointer, const QString &source, const QString &translated,
                                       const QString &target, bool error)
 {
+    m_pin->setChecked(false);
     m_direction->setText(error ? tr("Translation unavailable")
         : target == "en" ? tr("Chinese → English") : tr("English → 简体中文"));
     m_original->setText(source.left(400));
@@ -54,3 +68,5 @@ void TranslationPopup::showTranslation(QPoint pointer, const QString &source, co
     move(location);
     show();
 }
+
+void TranslationPopup::dismiss() { m_pin->setChecked(false); hide(); }

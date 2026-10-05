@@ -3,7 +3,7 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.4.0** adds Word, Line and bounded Sentence hover selection.
+Version **0.4.1** separates distant labels/columns and improves Word, Line and bounded Sentence hover selection.
 Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
 translation and optional CC-CEDICT word definitions require no API key.
 Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
@@ -16,12 +16,12 @@ does not bundle translation models. See [validation](docs/TESTING.md).
 
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.0),
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.1),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
 ```bash
-sudo apt install ./hover-translate_0.4.0_amd64.deb
+sudo apt install ./hover-translate_0.4.1_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -63,21 +63,33 @@ The earlier v0.2.0 does not contain Wayland hover support or these fixes.
 **Hover text** controls automatic hover only:
 
 - **Word:** translates the OCR word under the pointer, removing surrounding
-  punctuation. Blank space does not select the nearest word. Chinese OCR may
-  identify a single character; linguistic Chinese word segmentation is not yet
-  implemented.
-- **Line:** the current visual line, preserving the previous behavior/default.
+  punctuation. This is the **default for new settings**; saved modes are preserved.
+  Chinese character boxes are matched against CC-CEDICT for the longest known
+  word containing the pointer. This is dictionary matching, not a full linguistic
+  segmenter; without a matching entry, OCR tokens remain the fallback.
+- **Line:** nearby text on the current visual line. **Large horizontal gaps split
+  the line into separate runs**, so distant table headers are not translated together.
 - **Sentence:** follows punctuation across nearby wrapped lines in the same
   OCR paragraph and column, limited to **3 lines and 300 characters**. Different
-  columns, paragraph breaks and large gaps stop joining. When a complete bounded
+  columns, paragraph breaks and large horizontal/vertical gaps stop joining. When a complete bounded
   sentence cannot be found, the current line is used instead; lines longer than
   300 characters are not selected in this mode. Abbreviations and OCR errors can
   confuse punctuation-based sentence boundaries. The popup shows selected source
   text so you can check the result. Use manual region selection for longer text.
 
-When upgrading from a working 0.3.0 installation, quit the old process, install
-0.4.0 and reopen it. Existing models/settings are retained; the extension is
-unchanged, so this upgrade does not require reinstalling it or signing out.
+Enable **Highlight selected source text** to see exactly which recognized text
+will be translated. Hold **Shift** for a temporary Word lookup, or **Ctrl+Shift**
+for Sentence; releasing the keys restores the saved mode. You can disable these
+modifiers in settings. Move into the popup promptly (a 350 ms grace period allows
+this), then click **Copy translation**, **Pin/Unpin** or **Close**. A pinned popup
+stays until closed, Esc, pause, lock/overview, app exit or extension disable.
+Only an explicit Copy click writes to the clipboard. Pinning pauses further hover
+lookups until the popup is closed/unpinned; no permanent history is saved.
+
+**Upgrading to 0.4.1 requires the updated GNOME extension (version 4).** Quit the
+older process, install the new package, click **Set up GNOME hover**, then sign out
+and back in. App settings and downloaded models are retained. An old extension
+is paused with an upgrade message rather than silently enabling unsupported controls.
 
 GNOME hover uses the compositor's pointer and screenshot APIs. Capture is
 limited to a 700 × 160 logical-pixel region clipped to the hovered monitor
@@ -104,7 +116,9 @@ capture path. GNOME manual capture needs `xdg-desktop-portal-gnome`.
 ## Dictionary and privacy
 
 CC-CEDICT primarily supplies Chinese → English definitions, with limited exact
-English-definition reverse lookup. Unmatched words and sentences use Argos;
+English-definition reverse lookup. English lookup also tries common inflections
+(e.g. running → run), labeling the matched base word. Exact entries take priority.
+This improves lookup but does not make CC-CEDICT a comprehensive English–Chinese dictionary. Unmatched words and sentences use Argos;
 uncheck **Show dictionary definitions** to force sentence-model translation.
 The dictionary has no expiry and works without scheduled updates. Updating
 occasionally (for example, every 1–3 months) is optional and may add/correct
@@ -187,6 +201,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.4.0-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.4.1-Source.tar.gz`. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).

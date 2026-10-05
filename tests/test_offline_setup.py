@@ -41,6 +41,19 @@ class OfflineSetupTest(unittest.TestCase):
                 with patch.object(setup.urllib.request,"urlopen",return_value=response):
                     with self.assertRaises(ValueError): setup.download("https://example.com/model",Path(directory)/"model")
 
+    def test_dictionary_inflections_preserve_exact_lookup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"cedict.u8"
+            path.write_text("# test-authored definitions\n跑 跑 [pao3] /to run/\n学习 学习 [xue2 xi2] /to study/\n眼镜 眼镜 [yan3 jing4] /glasses/\n",encoding="utf-8")
+            dictionary = bridge.Dictionary(path)
+            self.assertIn("running → run",dictionary.lookup("running","en"))
+            self.assertIn("ran → run",dictionary.lookup("ran","en"))
+            self.assertIn("studies → study",dictionary.lookup("studies","en"))
+            self.assertIn("眼镜",dictionary.lookup("glasses","en"))
+            self.assertNotIn("→",dictionary.lookup("glasses","en"))
+            self.assertEqual(dictionary.lookup("unknownword","en"),"")
+            self.assertEqual(dictionary.lookup("跑","zh-CN"),"to run")
+
     def test_local_sentence_chunks_need_no_model_or_network(self):
         splitter = bridge.LocalSentenceSplitter(None)
         self.assertEqual(splitter.split_sentences("Hello world. 你好世界！Hello again!"),["Hello world.","你好世界！","Hello again!"])

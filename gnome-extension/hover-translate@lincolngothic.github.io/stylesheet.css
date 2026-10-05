@@ -10,3 +10,8 @@
 .hover-translate-source { color: #557065; font-size: 11pt; }
 .hover-translate-result { color: #18251f; font-size: 13pt; }
 .hover-translate-error { color: #963f22; }
+
+.hover-translate-actions { spacing: 8px; }
+.hover-translate-actions StButton { padding: 6px 10px; border-radius: 5px; background-color: #d9e8df; color: #18251f; }
+.hover-translate-actions StButton:hover { background-color: #b8d7c5; }
+.hover-translate-highlight { background-color: rgba(50,180,125,0.16); border: 1px solid #218561; }

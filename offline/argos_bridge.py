@@ -41,8 +41,27 @@ class Dictionary:
                         self.english.setdefault(key, []).append(f"{simplified} [{pinyin}] — {'; '.join(definitions)}")
 
     def lookup(self, text, source):
-        values = (self.chinese if source == "zh-CN" else self.english).get(text.strip().casefold(), [])
-        return "\n".join(dict.fromkeys(values[:8]))
+        key = text.strip().casefold()
+        values = (self.chinese if source == "zh-CN" else self.english).get(key, [])
+        lemma = ""
+        if not values and source == "en" and re.fullmatch(r"[a-z]+", key):
+            irregular = {"went": "go", "gone": "go", "ran": "run", "gave": "give", "given": "give",
+                         "took": "take", "taken": "take", "wrote": "write", "written": "write",
+                         "children": "child", "men": "man", "women": "woman", "teeth": "tooth",
+                         "feet": "foot", "mice": "mouse", "better": "good", "best": "good"}
+            candidates = [irregular[key]] if key in irregular else []
+            if key.endswith("ies") and len(key) > 4: candidates.append(key[:-3]+"y")
+            if key.endswith("ied") and len(key) > 4: candidates.append(key[:-3]+"y")
+            for suffix in ("ing", "ed", "es", "s", "er", "est"):
+                if key.endswith(suffix) and len(key)-len(suffix) >= 3:
+                    base = key[:-len(suffix)]
+                    candidates.extend([base, base+"e"])
+                    if len(base)>2 and base[-1]==base[-2]: candidates.append(base[:-1])
+            for candidate in dict.fromkeys(candidates):
+                if candidate in self.english:
+                    values = self.english[candidate]; lemma = candidate; break
+        result = "\n".join(dict.fromkeys(values[:8]))
+        return f"{key} → {lemma}\n{result}" if lemma else result
 
 
 def deny_network(*args, **kwargs):

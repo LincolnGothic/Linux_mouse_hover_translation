@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "gnomehover.h"
 #include <QDBusConnectionInterface>
+#include <QDBusMetaType>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
@@ -21,20 +22,34 @@ QDBusMessage method(const QString &name)
 GnomeHover::GnomeHover(QObject *parent) : QObject(parent),
     m_watcher(service, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForOwnerChange, this)
 {
+    qDBusRegisterMetaType<QList<double>>();
     auto bus = QDBusConnection::sessionBus();
     bus.connect(service, path, service, "Capture", this, SLOT(capture(uint,QByteArray,double,double)));
+    bus.connect(service, path, service, "CaptureMode", this, SLOT(captureMode(uint,QByteArray,double,double,QString)));
     bus.connect(service, path, service, "Invalidated", this, SLOT(invalidated(uint)));
     bus.connect(service, path, service, "Problem", this, SLOT(problem(uint,QString)));
     connect(&m_watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
         [this](const QString &, const QString &, const QString &owner) {
-        cancel(); m_enabled = false;
+        ++m_configuration; cancel(); m_enabled = false;
         if (!owner.isEmpty() && m_settings.enabled) configure(m_settings);
         else emit statusChanged(tr("GNOME hover is waiting for the extension."));
         emit availabilityChanged();
     });
     connect(&m_ocr, &TesseractOcr::linesRecognized, this, [this](const QVector<OcrLine> &lines) {
         if (m_enabled && m_ocrEpoch == m_epoch) {
-            m_source = HoverPolicy::textAt(lines, m_point, m_settings.textMode);
+            m_source = HoverPolicy::textAt(lines, m_point, m_mode);
+            if (m_mode == "word") {
+                const auto word = m_dictionary.chineseAt(lines, m_point);
+                if (!word.isEmpty()) m_source = word;
+            }
+            if (m_settings.highlightSource && m_imageSize.isValid()) {
+                QList<double> boxes;
+                for (const auto &box:HoverPolicy::sourceBounds(lines,m_point,m_source))
+                    boxes << double(box.x())/m_imageSize.width() << double(box.y())/m_imageSize.height()
+                          << double(box.width())/m_imageSize.width() << double(box.height())/m_imageSize.height();
+                auto selection=method("Selection"); selection << m_token << QVariant::fromValue(boxes);
+                QDBusConnection::sessionBus().asyncCall(selection,1000);
+            }
             const auto source = HoverPolicy::sourceLanguage(m_source);
             if (!m_source.isEmpty() && !source.isEmpty() && source != m_settings.target) {
                 m_key = source + QChar(0) + m_settings.target + QChar(0) + m_source;
@@ -78,7 +93,8 @@ bool GnomeHover::available()
 
 bool GnomeHover::configure(const HoverSettings &settings, QString *error)
 {
-    cancel(); m_cache.clear(); m_settings = settings;
+    ++m_configuration; cancel(); m_cache.clear(); m_settings = settings;
+    m_dictionary.load(settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
     QString failure;
     if (settings.enabled && !available()) failure = tr("Install and enable the Hover Translate GNOME extension, then reopen the app.");
     else if (settings.enabled && !m_ocr.init("eng+chi_sim", settings.tessdataPath.toUtf8()))
@@ -88,11 +104,24 @@ bool GnomeHover::configure(const HoverSettings &settings, QString *error)
     if (!failure.isEmpty()) { emit statusChanged(failure); return false; }
     if (available()) {
         auto message = method("Configure"); message << m_enabled << settings.dwellMs;
-        const auto epoch = m_epoch;
+        const auto configuration = m_configuration;
         auto *watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message, 2000), this);
-        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, epoch](QDBusPendingCallWatcher *call) {
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, configuration](QDBusPendingCallWatcher *call) {
             const QDBusPendingReply<> reply = *call; call->deleteLater();
-            if (reply.isError() && epoch == m_epoch) {
+            if (!reply.isError() && configuration == m_configuration) {
+                auto options=method("ConfigureOptions"); options << m_settings.highlightSource << m_settings.temporaryModes;
+                auto *configured = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(options,2000),this);
+                connect(configured,&QDBusPendingCallWatcher::finished,this,[this,configuration](QDBusPendingCallWatcher *call) {
+                    const QDBusPendingReply<> reply=*call; call->deleteLater();
+                    if (reply.isError() && configuration==m_configuration) {
+                        auto paused=method("Configure"); paused << false << m_settings.dwellMs;
+                        QDBusConnection::sessionBus().asyncCall(paused,1000);
+                        cancel(); m_enabled=false;
+                        emit statusChanged(tr("Update the GNOME extension: click Set up GNOME hover, then sign out and back in."));
+                    }
+                });
+            }
+            if (reply.isError() && configuration == m_configuration) {
                 cancel(); m_enabled = false;
                 emit statusChanged(tr("Could not enable GNOME hover: ") + reply.error().message());
                 emit availabilityChanged();
@@ -120,8 +149,14 @@ void GnomeHover::problem(uint token, const QString &message)
 
 void GnomeHover::capture(uint token, const QByteArray &png, double x, double y)
 {
+    captureMode(token,png,x,y,{});
+}
+
+void GnomeHover::captureMode(uint token, const QByteArray &png, double x, double y, const QString &mode)
+{
     if (!m_enabled || token != m_token || png.size() > 8 * 1024 * 1024 || !std::isfinite(x) || !std::isfinite(y)
         || x < 0 || y < 0 || x >= 1 || y >= 1) return;
+    if (!mode.isEmpty() && mode != "word" && mode != "sentence") return;
     QBuffer buffer; buffer.setData(png); buffer.open(QIODevice::ReadOnly);
     QImageReader reader(&buffer, "PNG");
     const auto size = reader.size();
@@ -129,7 +164,7 @@ void GnomeHover::capture(uint token, const QByteArray &png, double x, double y)
     const auto image = reader.read();
     if (image.isNull()) return;
     cancel(); m_token = token;
-    m_pending = Pending{image, QPoint(int(x * image.width()), int(y * image.height())), m_epoch};
+    m_pending = Pending{image, QPoint(int(x * image.width()), int(y * image.height())), m_epoch, (mode.isEmpty() || !m_settings.temporaryModes) ? m_settings.textMode : mode};
     startPending();
 }
 
@@ -137,9 +172,9 @@ void GnomeHover::startPending()
 {
     if (!m_enabled || !m_pending || m_ocr.isBusy()) return;
     auto pending = std::move(*m_pending); m_pending.reset();
-    m_ocrEpoch = pending.epoch; m_point = pending.point;
+    m_ocrEpoch = pending.epoch; m_point = pending.point; m_mode=pending.mode; m_imageSize=pending.image.size();
     emit statusChanged(tr("Reading text under the pointer…"));
-    m_ocr.recognizeLayout(pending.image, 96, m_settings.textMode == "sentence");
+    m_ocr.recognizeLayout(pending.image, 96, m_mode == "sentence");
 }
 
 void GnomeHover::result(const QString &source, const QString &text, bool error)

@@ -1,4 +1,4 @@
-# Validation and known limitations — 0.4.0
+# Validation and known limitations — 0.4.1
 
 Build platforms: Debian 13 / Qt 6.8.2 and Ubuntu 26.04 amd64 / Qt 6.10.2 /
 GCC 15.2. The native Ubuntu runtime uses Python 3.14, CPU PyTorch 2.14.1 and
@@ -38,7 +38,8 @@ No Shell Eval or unsafe mode is used.
 
 The live test verifies dwell capture, real OCR, shell popup contents/visibility,
 Escape dismissal without immediate reappearance, pointer movement and pause.
-It first checks a test-authored dictionary, including Word mode. When real
+It first checks a test-authored dictionary, including Word mode, gap-separated table headers, source highlighting, native
+Copy/Pin/Escape interaction, and temporary Shift overrides. When real
 model paths are supplied, it disables the dictionary, translates a sentence
 wrapped across two lines in Sentence mode, then checks English→Chinese and
 Chinese→English Line hover using the downloaded models and actual offline worker.
@@ -51,7 +52,7 @@ bash tools/test-gnome.sh build
 
 Without those variables the GNOME run explicitly reports dictionary-only
 validation. This is not evidence of sentence-model translation. Current
-0.4.0 native validation supplied both variables and passed the complete flow.
+0.4.1 native validation supplied both variables and passed the complete flow.
 
 GNOME logs warnings for OS services absent from the isolated container
 (logind/GDM/Polkit/calendar/network), but the actual compositor, native clients,
@@ -109,9 +110,14 @@ must not be described as real sentence-model validation.
 - Geometry tests cover window/monitor clipping, negative origins and HiDPI
   ratios, but do not establish every physical multi-monitor layout.
 - X11 hover retains one monitor at 100% scaling.
-- Chinese Word mode uses OCR tokens, which may be single characters. Sentence
-  mode uses heuristic punctuation and a three-line/300-character cap, falling
-  back to the current line for uncertain joins; it skips lines over 300 characters.
+- Chinese Word mode uses dictionary matching around recognized character boxes,
+  not contextual linguistic segmentation. Missing entries/OCR errors still fall
+  back to OCR tokens. English inflection lookup is heuristic and the English
+  reverse dictionary remains limited to CC-CEDICT definitions.
+- Sentence mode uses heuristic punctuation and a three-line/300-character cap,
+  falling back to the current run for uncertain joins; it skips runs over 300
+  characters. Large horizontal gaps split runs; unusual spacing/layout can still
+  produce imperfect grouping. Copy/Pin requires entering the popup promptly.
 - Blur/stylized/low-contrast text and lines wider than the crop can defeat OCR.
 - Online Mozhi tests are local fixtures; public-server availability is not
   guaranteed. Offline failures do not fall back online.

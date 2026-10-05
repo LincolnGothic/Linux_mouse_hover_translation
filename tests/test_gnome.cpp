@@ -3,6 +3,7 @@
 #include "gnomehover.h"
 #include <QBuffer>
 #include <QDBusConnection>
+#include <QDBusContext>
 #include <QFile>
 #include <QPainter>
 #include <QSignalSpy>
@@ -11,19 +12,27 @@
 
 const QString service = "io.github.LincolnGothic.HoverTranslate.Gnome";
 const QString path = "/io/github/LincolnGothic/HoverTranslate/Gnome";
-class GnomeFixture : public QObject {
+class GnomeFixture : public QObject, protected QDBusContext {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "io.github.LincolnGothic.HoverTranslate.Gnome")
 public:
     uint token = 0;
-    int configured = 0;
+    int configured = 0, options = 0;
+    bool temporary = true, legacy = false, active = false;
 public slots:
-    void Configure(bool, int) { ++configured; emit Invalidated(++token); }
+    void Configure(bool value, int) { active=value; ++configured; emit Invalidated(++token); }
+    void ConfigureOptions(bool, bool value) {
+        ++options;
+        if (legacy) { sendErrorReply(QDBusError::UnknownMethod,"ConfigureOptions is unavailable"); return; }
+        temporary=value;
+    }
+    void Selection(uint, const QList<double> &) {}
     void Result(uint token, const QString &source, const QString &text, bool error) {
         emit resultReceived(token, source, text, error);
     }
 signals:
     void Capture(uint token, const QByteArray &png, double x, double y);
+    void CaptureMode(uint token, const QByteArray &png, double x, double y, const QString &mode);
     void Invalidated(uint token);
     void Problem(uint token, const QString &message);
     void resultReceived(uint token, const QString &source, const QString &text, bool error);
@@ -50,13 +59,13 @@ private slots:
         QFile dictionary(directory.filePath("cedict.u8")); QVERIFY(dictionary.open(QIODevice::WriteOnly));
         dictionary.write(QString("# fixture authored for this test\n你好世界 你好世界 [ni3 hao3 shi4 jie4] /Hello world/\n").toUtf8());
         settings.dictionaryPath = dictionary.fileName(); settings.pythonPath = "python3";
-        settings.enabled = true; settings.target = "zh-CN";
+        settings.textMode = "line"; settings.enabled = true; settings.target = "zh-CN";
     }
     void captureToDictionaryAndHiDpi() {
         for (int scale : {1,2}) {
             GnomeHover hover; QVERIFY(GnomeHover::available());
-            const auto configured = fixture.configured; QVERIFY(hover.configure(settings));
-            QTRY_VERIFY(fixture.configured > configured);
+            const auto configured = fixture.configured, options=fixture.options; QVERIFY(hover.configure(settings));
+            QTRY_VERIFY(fixture.configured > configured); QTRY_VERIFY(fixture.options>options);
             QSignalSpy results(&fixture,&GnomeFixture::resultReceived);
             emit fixture.Capture(fixture.token, image(scale), 100.0/800, 62.0/180);
             QTRY_COMPARE_WITH_TIMEOUT(results.count(),1,8000);
@@ -99,6 +108,21 @@ private slots:
         auto paused = settings; paused.enabled = false; QVERIFY(hover.configure(paused)); QTest::qWait(50);
         bus.unregisterService(service); QTest::qWait(50); QVERIFY(bus.registerService(service));
         QTest::qWait(100); QVERIFY(!hover.enabled());
+    }
+    void disabledTemporaryModeIgnoresOverrides() {
+        GnomeHover hover; auto selected=settings; selected.temporaryModes=false;
+        const auto options=fixture.options; QVERIFY(hover.configure(selected));
+        QTRY_VERIFY(fixture.options>options); QVERIFY(!fixture.temporary);
+        QSignalSpy results(&fixture,&GnomeFixture::resultReceived);
+        emit fixture.CaptureMode(fixture.token,image(),100.0/800,62.0/180,"word");
+        QTRY_COMPARE_WITH_TIMEOUT(results.count(),1,8000);
+        QCOMPARE(results[0][1].toString(),QString("Hello world"));
+    }
+    void outdatedExtensionIsPaused() {
+        fixture.legacy=true; const auto options=fixture.options;
+        GnomeHover hover; QVERIFY(hover.configure(settings));
+        QTRY_VERIFY(fixture.options>options); QTRY_VERIFY(!hover.enabled()); QTRY_VERIFY(!fixture.active);
+        fixture.legacy=false;
     }
     void cleanupTestCase() {
         QDBusConnection::sessionBus().unregisterObject(path);

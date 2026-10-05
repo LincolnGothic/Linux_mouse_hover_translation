@@ -1,20 +1,20 @@
-# Ubuntu 26.04 / GNOME 50 quick start — 0.4.0
+# Ubuntu 26.04 / GNOME 50 quick start — 0.4.1
 
 ## Upgrade
 
 Quit the old app through its tray menu first. Install the amd64 package:
 
 ```bash
-sudo apt install ./hover-translate_0.4.0_amd64.deb
+sudo apt install ./hover-translate_0.4.1_amd64.deb
 /usr/bin/hover-translate --version
 /usr/bin/hover-translate
 ```
 
-Version must show **0.4.0**. An older local build or launcher can shadow the
+Version must show **0.4.1**. An older local build or launcher can shadow the
 packaged binary; `/usr/bin/hover-translate` explicitly starts the new package.
-The upgrade preserves app settings and offline models. A working 0.3.0 GNOME
-extension is unchanged; upgrading to 0.4.0 does not require reinstalling the
-extension or signing out. Do not delete your configuration.
+The upgrade preserves app settings and offline models. Version 0.4.1 requires
+GNOME extension version 4: click Set up GNOME hover, then sign out/in to load it.
+Do not delete your configuration.
 
 ## Automatic hover on Wayland
 
@@ -75,12 +75,15 @@ sentence translation have been validated with 0.3.0.
 
 ## Hover text and dictionary updates
 
-Word uses the OCR token under the pointer; Chinese may select a single character.
-Line preserves the old default. Sentence joins within one OCR paragraph/column,
-up to three lines and 300 characters. Uncertain joins use the current line;
-Sentence mode skips single lines over 300 characters. Punctuation/abbreviations
-and text outside the 700×160 crop can still produce incomplete sentences.
-Use the popup's source text to check selection, or manually select longer text.
+Word is the default for new settings; saved choices are retained. Chinese lookup
+uses actual character boxes and longest known CC-CEDICT matches, falling back to
+OCR tokens. Line/Sentence split distant labels at large horizontal gaps, including
+inside an OCR line. Sentence still limits joining to three lines/300 characters.
+Use the source highlight to check selection. Shift temporarily uses Word and
+Ctrl+Shift uses Sentence; releasing restores your saved mode. Both modifiers and
+highlighting can be disabled. Enter the popup promptly to copy, pin/unpin or close
+it. Pin pauses further captures; Esc, pause, lock, app exit and extension disable
+clear it. Only Copy changes the clipboard, and no persistent history is stored.
 
 CC-CEDICT does not expire. Optional updates every 1–3 months can add entries:
 `hover-translate-offline-setup --dictionary-only`. Restart afterward to clear
@@ -105,7 +108,7 @@ its operation does not depend on this manual portal dialog.
 
 ## Limits
 
-0.4.0 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
+0.4.1 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
 including native Wayland targets and real models in both directions.
 Physical desktops, fractional monitor scaling, other GNOME releases and
 actual manual screenshot permission dialogs remain unverified. X11 hover

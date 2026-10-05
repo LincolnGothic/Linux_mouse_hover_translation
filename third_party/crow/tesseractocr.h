@@ -6,7 +6,7 @@
  * Modified 2026-10-05 for Hover Translate: expose line geometry, use a
  * cancellation flag and a future watcher, decouple Crow's settings UI,
  * and improve small/dark screen text with padding, scaling and segmentation
- * fallback while retaining original image coordinates. Exposes word boxes
+ * fallback while retaining original image coordinates. Exposes word/character boxes
  * and paragraph IDs for bounded sentence selection.
  */
 #pragma once

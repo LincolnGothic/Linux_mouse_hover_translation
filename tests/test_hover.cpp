@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QProcess>
+#include <QPushButton>
 #include <QSignalSpy>
 #include <QScreen>
 #include <QTemporaryDir>
@@ -49,6 +50,7 @@ private slots:
     void ignoresSettingsWindow();
     void sameTargetMakesNoRequest();
     void escapeDismissesWithoutReappearing();
+    void popupCopyPinAndClose();
     void commandLineUsesActualBinary();
     void settingsWindowUsesActualBinary();
 };
@@ -90,7 +92,7 @@ void HoverTest::actualHoverBothDirectionsAndCache()
                 .arg(line.text).arg(line.bounds.x()).arg(line.bounds.y())
                 .arg(line.bounds.width()).arg(line.bounds.height()).arg(line.confidence);
     });
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy popup(&controller, &HoverController::popupShown);
     QCursor::setPos(surface.englishPoint());
@@ -125,7 +127,7 @@ void HoverTest::movementDropsSlowTranslation()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server; server.delayMs = 500;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy request(&server, &MockServer::received);
     QSignalSpy popup(&controller, &HoverController::popupShown);
@@ -143,7 +145,7 @@ void HoverTest::pauseDropsSlowTranslation()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server; server.delayMs = 500;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy request(&server, &MockServer::received);
     QSignalSpy popup(&controller, &HoverController::popupShown);
@@ -163,7 +165,7 @@ void HoverTest::ignoresSettingsWindow()
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
     controller.setIgnoredWidgets({&surface});
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QCursor::setPos(surface.englishPoint());
     QTest::qWait(600);
@@ -177,7 +179,7 @@ void HoverTest::sameTargetMakesNoRequest()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.target = "en"; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.target = "en"; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy read(&ocr, &TesseractOcr::linesRecognized);
     QString recognized;
@@ -197,7 +199,7 @@ void HoverTest::escapeDismissesWithoutReappearing()
     QVERIFY(QTest::qWaitForWindowExposed(&surface));
     MockServer server;
     TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
-    HoverSettings settings; settings.provider = "mozhi"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line"; settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
     QVERIFY(controller.configure(settings));
     QSignalSpy popup(&controller, &HoverController::popupShown);
     QCursor::setPos(surface.englishPoint());
@@ -215,6 +217,25 @@ void HoverTest::escapeDismissesWithoutReappearing()
     QTest::qWait(500);
     QCOMPARE(popup.count(), 1);
     xcb_disconnect(connection);
+}
+
+void HoverTest::popupCopyPinAndClose()
+{
+    ReadingSurface surface; surface.show(); QVERIFY(QTest::qWaitForWindowExposed(&surface));
+    MockServer server; TesseractOcr ocr; TranslationService translator; HoverController hover(&ocr,&translator);
+    HoverSettings settings; settings.textMode="line"; settings.provider="mozhi"; settings.instance=server.url();
+    settings.enabled=true; settings.dwellMs=100; QVERIFY(hover.configure(settings));
+    QSignalSpy popup(&hover,&HoverController::popupShown);
+    QApplication::clipboard()->setText("sentinel"); QCursor::setPos(surface.englishPoint());
+    QVERIFY(popup.wait(6000)); QCOMPARE(QApplication::clipboard()->text(),QString("sentinel"));
+    auto *pin=hover.popup()->findChild<QPushButton*>("pinTranslationButton"); QVERIFY(pin);
+    QTest::mouseClick(pin,Qt::LeftButton); QVERIFY(hover.popup()->pinned());
+    QCursor::setPos(10,10); QTest::qWait(700); QVERIFY(hover.popup()->isVisible());
+    QCOMPARE(popup.count(),1);
+    auto *copy=hover.popup()->findChild<QPushButton*>("copyTranslationButton"); QVERIFY(copy);
+    QTest::mouseClick(copy,Qt::LeftButton); QCOMPARE(QApplication::clipboard()->text(),QString("你好，世界"));
+    auto *close=hover.popup()->findChild<QPushButton*>("closeTranslationButton"); QVERIFY(close);
+    QTest::mouseClick(close,Qt::LeftButton); QVERIFY(!hover.popup()->isVisible()); QVERIFY(!hover.popup()->pinned());
 }
 
 void HoverTest::commandLineUsesActualBinary()

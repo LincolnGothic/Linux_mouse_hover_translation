@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "hoverpolicy.h"
 #include "settings.h"
+#include "worddictionary.h"
 #include "tesseractocr.h"
 #include "translationservice.h"
 #include "mockserver.h"
@@ -20,6 +21,7 @@ private slots:
     void lineSelection();
     void wordAndSentenceSelection();
     void wrappedSentenceOcr();
+    void separatedTextAndChineseWords();
     void fixedTargetLanguage();
     void settingsPersist();
     void settingsRejectInvalidEndpoints();
@@ -83,23 +85,23 @@ void CoreTest::wordAndSentenceSelection()
 {
     QVector<OcrLine> lines{
         {"Previous sentence. This sentence", {10,10,300,20}, 95,
-            {{"Previous",{10,10,70,20},95,0},{"This",{180,10,40,20},95,19}}, 0, 0},
+            {{"Previous",{10,10,70,20},95,0},{"sentence.",{85,10,85,20},95,9},{"This",{180,10,40,20},95,19},{"sentence",{225,10,85,20},95,24}}, 0, 0},
         {"wraps onto another line. Next sentence.", {10,40,300,20}, 95,
-            {{"wraps",{10,40,45,20},95,0},{"Next",{210,40,40,20},95,25}}, 0, 0},
+            {{"wraps",{10,40,45,20},95,0},{"onto",{60,40,40,20},95,6},{"another",{105,40,50,20},95,11},{"line.",{160,40,45,20},95,19},{"Next",{210,40,40,20},95,25},{"sentence.",{255,40,60,20},95,30}}, 0, 0},
         {"Different paragraph.", {10,70,200,20},95,{{"Different",{10,70,85,20},95,0}},0,1}
     };
     QCOMPARE(HoverPolicy::textAt(lines,{25,45},"word"),QString("wraps"));
     QCOMPARE(HoverPolicy::textAt(lines,{25,45},"line"),lines[1].text);
     QCOMPARE(HoverPolicy::textAt(lines,{25,45},"sentence"),QString("This sentence wraps onto another line."));
     QCOMPARE(HoverPolicy::textAt(lines,{220,45},"sentence"),QString("Next sentence."));
-    QVERIFY(HoverPolicy::textAt(lines,{150,45},"word").isEmpty());
+    QVERIFY(HoverPolicy::textAt(lines,{157,45},"word").isEmpty());
     QVERIFY(HoverPolicy::textAt(lines,{25,100},"sentence").isEmpty());
     auto altered = lines;
     altered[0].paragraph = 4;
     QCOMPARE(HoverPolicy::textAt(altered,{25,45},"sentence"),QString("wraps onto another line."));
-    altered = lines; altered[1].bounds.translate(400,0); altered[1].words[0].bounds.translate(400,0);
+    altered = lines; altered[1].bounds.translate(400,0); for (auto &word:altered[1].words) word.bounds.translate(400,0);
     QCOMPARE(HoverPolicy::textAt(altered,{425,45},"sentence"),QString("wraps onto another line."));
-    altered = lines; altered[1].bounds.translate(0,90); altered[1].words[0].bounds.translate(0,90);
+    altered = lines; altered[1].bounds.translate(0,90); for (auto &word:altered[1].words) word.bounds.translate(0,90);
     QCOMPARE(HoverPolicy::textAt(altered,{25,135},"sentence"),QString("wraps onto another line."));
     altered = lines; altered[0].confidence = 20;
     QCOMPARE(HoverPolicy::textAt(altered,{25,45},"sentence"),QString("wraps onto another line."));
@@ -145,6 +147,42 @@ void CoreTest::wrappedSentenceOcr()
     QVERIFY(checked);
 }
 
+void CoreTest::separatedTextAndChineseWords()
+{
+    for (const int scale:{1,2}) {
+        QVector<OcrLine> table{{"Mode What it translates",{10,10,400,20},95,
+            {{"Mode",{10,10,40,20},95,0},{"What",{260,10,40,20},95,5},
+             {"it",{305,10,15,20},95,10},{"translates",{325,10,85,20},95,13}},0,0}};
+        auto scaled=[scale](QRect r) { return QRect(r.topLeft()*scale,r.size()*scale); };
+        table[0].bounds=scaled(table[0].bounds);
+        for (auto &word:table[0].words) word.bounds=scaled(word.bounds);
+        for (const auto &mode:{"line","sentence"}) {
+            QCOMPARE(HoverPolicy::textAt(table,QPoint(20,15)*scale,mode),QString("Mode"));
+            QCOMPARE(HoverPolicy::textAt(table,QPoint(270,15)*scale,mode),QString("What it translates"));
+            QVERIFY(HoverPolicy::textAt(table,QPoint(150,15)*scale,mode).isEmpty());
+        }
+        const auto boxes=HoverPolicy::sourceBounds(table,QPoint(270,15)*scale,"What it translates");
+        QVERIFY(!boxes.isEmpty()); for (const auto &box:boxes) QVERIFY(box.left()>=260*scale);
+    }
+    QTemporaryDir directory; QFile dictionary(directory.filePath("cedict.u8")); QVERIFY(dictionary.open(QIODevice::WriteOnly));
+    dictionary.write(QString("# test-authored definitions\n你好 你好 [ni3 hao3] /hello/\n世界 世界 [shi4 jie4] /world/\n").toUtf8()); dictionary.close();
+    WordDictionary words; words.load(dictionary.fileName());
+    QVector<OcrLine> chinese{{"你好世界",{10,10,80,20},95,
+        {{"你好世界",{10,10,80,20},95,0,
+          {{"你",{10,10,20,20},95,0},{"好",{30,10,20,20},95,1},
+           {"世",{50,10,20,20},95,2},{"界",{70,10,20,20},95,3}}}},0,0}};
+    QCOMPARE(words.chineseAt(chinese,{35,15}),QString("你好"));
+    QCOMPARE(words.chineseAt(chinese,{55,15}),QString("世界"));
+    const auto boxes=HoverPolicy::sourceBounds(chinese,{35,15},"你好");
+    QCOMPARE(boxes.size(),1); QCOMPARE(boxes[0],QRect(10,10,40,20));
+    const QVector<OcrLine> separated{{"你 好",{10,10,210,20},95,
+        {{"你",{10,10,20,20},95,0,{{"你",{10,10,20,20},95,0}}},
+         {"好",{200,10,20,20},95,2,{{"好",{200,10,20,20},95,2}}}},0,0}};
+    QVERIFY(words.chineseAt(separated,{15,15}).isEmpty());
+    QVERIFY(words.chineseAt(separated,{205,15}).isEmpty());
+    QCOMPARE(HoverSettings{}.textMode,QString("word"));
+}
+
 void CoreTest::fixedTargetLanguage()
 {
     QCOMPARE(HoverPolicy::sourceLanguage("Hello world"), QString("en"));
@@ -161,12 +199,14 @@ void CoreTest::settingsPersist()
     HoverSettings settings;
     settings.enabled = true; settings.target = "en"; settings.dwellMs = 900;
     settings.instance = "https://example.com/mozhi"; settings.textMode = "word";
+    settings.highlightSource=false; settings.temporaryModes=false;
     QVERIFY(store.save(settings));
     const auto loaded = SettingsStore(store.fileName()).load();
     QCOMPARE(loaded.target, settings.target);
     QCOMPARE(loaded.instance, settings.instance);
     QCOMPARE(loaded.dwellMs, 900);
     QCOMPARE(loaded.textMode, QString("word"));
+    QVERIFY(!loaded.highlightSource); QVERIFY(!loaded.temporaryModes);
     QVERIFY(loaded.enabled);
 }
 
@@ -226,6 +266,13 @@ void CoreTest::englishAndChineseOcr()
     }
     QVERIFY(english);
     QVERIFY(chinese);
+    QTemporaryDir directory; QFile dictionary(directory.filePath("cedict.u8")); QVERIFY(dictionary.open(QIODevice::WriteOnly));
+    dictionary.write(QString("# authored fixture\n你好 你好 [ni3 hao3] /hello/\n世界 世界 [shi4 jie4] /world/\n").toUtf8()); dictionary.close();
+    WordDictionary words; words.load(dictionary.fileName()); bool matched=false;
+    for (const auto &line:lines) for (const auto &word:line.words) for (const auto &symbol:word.symbols) if (symbol.text=="好") {
+        QCOMPARE(words.chineseAt(lines,symbol.bounds.center()),QString("你好")); matched=true;
+    }
+    QVERIFY(matched);
 }
 
 void CoreTest::smallScreenTextOcr_data()
