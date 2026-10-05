@@ -265,6 +265,13 @@ void HoverTest::settingsWindowUsesActualBinary()
     auto *connection = xcb_connect(nullptr, nullptr);
     QVERIFY(!xcb_connection_has_error(connection));
     const auto root = xcb_setup_roots_iterator(xcb_get_setup(connection)).data->root;
+    auto atom = [&](const QByteArray &name) {
+        auto *reply = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, false, name.size(), name.constData()), nullptr);
+        const xcb_atom_t value = reply ? reply->atom : xcb_atom_t(XCB_ATOM_NONE);
+        std::free(reply);
+        return value;
+    };
+    const auto windowName = atom("_NET_WM_NAME");
     auto findWindow = [&] {
         xcb_window_t found = XCB_WINDOW_NONE;
         auto *tree = xcb_query_tree_reply(connection, xcb_query_tree(connection, root), nullptr);
@@ -272,9 +279,9 @@ void HoverTest::settingsWindowUsesActualBinary()
         const auto *children = xcb_query_tree_children(tree);
         for (int i = 0; i < xcb_query_tree_children_length(tree); ++i) {
             auto *name = xcb_get_property_reply(connection, xcb_get_property(connection, false,
-                children[i], XCB_ATOM_WM_NAME, XCB_GET_PROPERTY_TYPE_ANY, 0, 1024), nullptr);
+                children[i], windowName, XCB_GET_PROPERTY_TYPE_ANY, 0, 1024), nullptr);
             if (name && QByteArray(static_cast<const char *>(xcb_get_property_value(name)),
-                xcb_get_property_value_length(name)) == "Hover Translate") found = children[i];
+                xcb_get_property_value_length(name)) == QString("Hover Translate — Settings").toUtf8()) found = children[i];
             std::free(name);
         }
         std::free(tree);
@@ -285,12 +292,6 @@ void HoverTest::settingsWindowUsesActualBinary()
     QTest::qWait(100);
     QVERIFY(QGuiApplication::primaryScreen()->grabWindow(window).save(QCoreApplication::applicationDirPath() + "/settings-window.png"));
     QCOMPARE(process.state(), QProcess::Running);
-    auto atom = [&](const QByteArray &name) {
-        auto *reply = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, false, name.size(), name.constData()), nullptr);
-        const xcb_atom_t value = reply ? reply->atom : xcb_atom_t(XCB_ATOM_NONE);
-        std::free(reply);
-        return value;
-    };
     xcb_client_message_event_t close{};
     close.response_type = XCB_CLIENT_MESSAGE;
     close.format = 32;

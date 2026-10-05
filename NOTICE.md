@@ -1,6 +1,6 @@
 # Copyright and license notices
 
-Hover Translate 0.3.0 is a modified work using components of Crow Translate
+Hover Translate 0.4.2 is a modified work using components of Crow Translate
 4.1.0. The application and its corresponding source are licensed under
 **GNU GPL version 3 or later (GPL-3.0-or-later)**. The complete terms are in
 [LICENSE](LICENSE). There is no warranty.

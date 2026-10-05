@@ -1,24 +1,33 @@
-# Ubuntu 26.04 / GNOME 50 quick start — 0.4.1
+# Ubuntu 26.04 / GNOME 50 quick start — 0.4.2
 
 ## Upgrade
 
 Quit the old app through its tray menu first. Install the amd64 package:
 
 ```bash
-sudo apt install ./hover-translate_0.4.1_amd64.deb
+sudo apt install ./hover-translate_0.4.2_amd64.deb
 /usr/bin/hover-translate --version
 /usr/bin/hover-translate
 ```
 
-Version must show **0.4.1**. An older local build or launcher can shadow the
+Version must show **0.4.2**. An older local build or launcher can shadow the
 packaged binary; `/usr/bin/hover-translate` explicitly starts the new package.
-The upgrade preserves app settings and offline models. Version 0.4.1 requires
-GNOME extension version 4: click Set up GNOME hover, then sign out/in to load it.
+The upgrade preserves app settings and offline models. From 0.4.1, quit, upgrade
+and reopen; the unchanged version 4 GNOME extension needs no reinstall/logout.
+From 0.4.0 or earlier, use Hover → Set up GNOME hover, then sign out/in.
 Do not delete your configuration.
+
+## Settings layout
+
+Hover controls and GNOME setup are in **Hover**. Engine, model installation and
+test translation are in **Translation**. Optional resource paths are in
+**Advanced**. The status and Apply/Close/reader actions remain visible; use the
+vertical wheel/scrollbar when a tab is taller than the window. No horizontal
+scrolling is needed.
 
 ## Automatic hover on Wayland
 
-1. Click **Set up GNOME hover**. This installs the extension for your account
+1. In **Hover**, click **Set up GNOME hover**. This installs the extension for your account
    and enables its own UUID while preserving other extension settings. Earlier
    copies are backed up under `~/.local/share/hover-translate/extension-backups`.
 2. **Sign out and back in**, then reopen Hover Translate. GNOME loads the
@@ -108,7 +117,7 @@ its operation does not depend on this manual portal dialog.
 
 ## Limits
 
-0.4.1 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
+0.4.2 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
 including native Wayland targets and real models in both directions.
 Physical desktops, fractional monitor scaling, other GNOME releases and
 actual manual screenshot permission dialogs remain unverified. X11 hover

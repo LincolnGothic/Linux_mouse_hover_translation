@@ -38,13 +38,13 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("HoverTranslate");
     app.setOrganizationName("LincolnGothic");
-    app.setApplicationVersion("0.4.1");
+    app.setApplicationVersion("0.4.2");
     app.setDesktopFileName("io.github.LincolnGothic.HoverTranslate");
     app.setWindowIcon(QIcon(":/icons/hover-translate.svg"));
     QNetworkProxyFactory::setUseSystemConfiguration(true);
     QCommandLineParser parser;
     parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. GNOME Wayland hover with the extension, X11 hover, and screen-region capture.\n"
-        "GNU GPL version 3 or later; no warranty. See Settings → About & licenses.");
+        "GNU GPL version 3 or later; no warranty. See Settings → About for licenses.");
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOptions({

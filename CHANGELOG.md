@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2 — settings that fit the window
+
+- Separate Hover, Translation and Advanced tabs; optional resource paths no longer crowd daily controls.
+- Remove horizontal overflow from oversized button rows and stack field labels above their controls.
+- Keep status, screen-region/text actions, About, Apply and Close outside scrolling pages.
+- Scroll tall pages vertically with the wheel or draggable scrollbar; size the initial window to the available screen.
+- Preserve saved settings and models. GNOME extension remains version 4, so an active 0.4.1 installation needs only an app restart after upgrading.
+- Check small/large-font layouts, scrollbar input and action/settings wiring with a new settings UI suite.
+
 ## 0.4.1 — separate distant labels and improve word lookup
 
 - Large horizontal gaps split an OCR line into text runs in Line and Sentence

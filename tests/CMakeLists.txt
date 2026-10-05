@@ -4,6 +4,11 @@ add_executable(test_core test_core.cpp mockserver.h)
 target_link_libraries(test_core PRIVATE hover_core Qt6::Test)
 add_test(NAME core COMMAND test_core)
 
+add_executable(test_settings test_settings.cpp ../src/settingsdialog.cpp ../src/settingsdialog.h)
+target_link_libraries(test_settings PRIVATE hover_core Qt6::Test)
+add_test(NAME settings_ui COMMAND test_settings)
+set_tests_properties(settings_ui PROPERTIES TIMEOUT 30)
+
 pkg_check_modules(XCB_XTEST REQUIRED IMPORTED_TARGET xcb-xtest)
 add_executable(test_hover test_hover.cpp mockserver.h)
 target_link_libraries(test_hover PRIVATE hover_core Qt6::Test PkgConfig::XCB_XTEST)

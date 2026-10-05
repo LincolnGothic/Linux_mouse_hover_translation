@@ -3,7 +3,7 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.4.1** separates distant labels/columns and improves Word, Line and bounded Sentence hover selection.
+Version **0.4.2** provides a tabbed settings window that fits smaller screens, with fixed actions and working vertical scrolling.
 Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
 translation and optional CC-CEDICT word definitions require no API key.
 Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
@@ -16,20 +16,20 @@ does not bundle translation models. See [validation](docs/TESTING.md).
 
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.1),
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.2),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
 ```bash
-sudo apt install ./hover-translate_0.4.1_amd64.deb
+sudo apt install ./hover-translate_0.4.2_amd64.deb
 /usr/bin/hover-translate
 ```
 
-1. Click **Set up GNOME hover**. The helper installs/enables this extension for
+1. In **Hover**, click **Set up GNOME hover**. The helper installs/enables this extension for
    your account, preserves other extensions and backs up earlier copies.
    **Sign out and back in**, then reopen Hover Translate. GNOME loads the new
    extension at login; the hover checkbox becomes available.
-2. Keep **Translation → Offline**, click **Install offline models**, and keep
+2. In **Translation**, keep the engine **Offline**, click **Install offline models**, and keep
    the app open until installation finishes. This downloads a private CPU
    Python runtime, Argos Translate 1.11.0, both 1.9 translation models and an
    optional dictionary under `~/.local/share/hover-translate`.
@@ -50,6 +50,17 @@ incompatible legacy Stanza sentence metadata with bounded local splitting.
 Translation stays offline, with no hidden sentence-model downloads.
 For setup details/errors, run `hover-translate-offline-setup` in a terminal.
 The earlier v0.2.0 does not contain Wayland hover support or these fixes.
+
+## Settings window
+
+- **Hover:** enable translation, target language, Word/Line/Sentence, delay, highlighting, shortcuts and GNOME setup.
+- **Translation:** offline/online engine, Mozhi server, dictionary toggle, model installation and test translation.
+- **Advanced:** optional OCR, Python, translation-model and dictionary paths.
+
+**Screen region**, **Translate text**, status, **About**, **Apply** and **Close** stay
+visible outside the scrolling pages. Smaller windows scroll vertically with the
+mouse wheel or scrollbar; there is no horizontal scrollbar. Changes take effect
+when you click Apply. Saved choices and offline downloads are preserved.
 
 ## Desktop workflows
 
@@ -86,10 +97,10 @@ stays until closed, Esc, pause, lock/overview, app exit or extension disable.
 Only an explicit Copy click writes to the clipboard. Pinning pauses further hover
 lookups until the popup is closed/unpinned; no permanent history is saved.
 
-**Upgrading to 0.4.1 requires the updated GNOME extension (version 4).** Quit the
-older process, install the new package, click **Set up GNOME hover**, then sign out
-and back in. App settings and downloaded models are retained. An old extension
-is paused with an upgrade message rather than silently enabling unsupported controls.
+**Upgrading from 0.4.1:** quit the old process, install the new package and reopen.
+The GNOME extension remains version 4; no reinstall or logout is needed if it is
+already active. From 0.4.0 or earlier, click **Hover → Set up GNOME hover**, then
+sign out and back in. App settings and downloaded models are retained.
 
 GNOME hover uses the compositor's pointer and screenshot APIs. Capture is
 limited to a 700 × 160 logical-pixel region clipped to the hovered monitor
@@ -153,7 +164,7 @@ cmake --build build --parallel 3
 ./build/hover-translate
 ```
 
-For the five regular test suites, install `libxcb-xtest0-dev xvfb xauth
+For the six regular test suites, install `libxcb-xtest0-dev xvfb xauth
 x11-utils dbus-x11 weston`, build with `-DBUILD_TESTING=ON`, then run:
 
 ```bash
@@ -201,6 +212,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.4.1-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.4.2-Source.tar.gz`. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).

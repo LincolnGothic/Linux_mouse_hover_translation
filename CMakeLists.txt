@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 cmake_minimum_required(VERSION 3.22)
-project(hover_translate VERSION 0.4.1 LANGUAGES CXX)
+project(hover_translate VERSION 0.4.2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)

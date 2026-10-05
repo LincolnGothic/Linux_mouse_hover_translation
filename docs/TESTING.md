@@ -1,4 +1,4 @@
-# Validation and known limitations — 0.4.1
+# Validation and known limitations — 0.4.2
 
 Build platforms: Debian 13 / Qt 6.8.2 and Ubuntu 26.04 amd64 / Qt 6.10.2 /
 GCC 15.2. The native Ubuntu runtime uses Python 3.14, CPU PyTorch 2.14.1 and
@@ -16,6 +16,7 @@ node tests/test_gnome_policy.mjs
 | Suite | Evidence |
 | --- | --- |
 | core | Timing, languages, word/sentence selection, wrapped-sentence OCR, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
+| settings_ui | Small window and large fonts, no horizontal overflow, actual wheel/scrollbar dragging, lower controls reachable, fixed footer, retained paths/modes and Apply/reader/test actions |
 | hover_x11 | Actual X11 capture/OCR/popup, Escape/pause/movement/cache and focus/selection/clipboard preservation |
 | portal_capture | Screenshot D-Bus fixture, actual crop/OCR/dictionary, invalid URI, cancellation/timeout and clipboard preservation |
 | gnome_bridge | Local extension-protocol fixture, actual OCR/dictionary, HiDPI ratios, invalid/stale captures and canceled work |
@@ -52,7 +53,7 @@ bash tools/test-gnome.sh build
 
 Without those variables the GNOME run explicitly reports dictionary-only
 validation. This is not evidence of sentence-model translation. Current
-0.4.1 native validation supplied both variables and passed the complete flow.
+0.4.2 native validation supplied both variables and passed the complete flow.
 
 GNOME logs warnings for OS services absent from the isolated container
 (logind/GDM/Polkit/calendar/network), but the actual compositor, native clients,
