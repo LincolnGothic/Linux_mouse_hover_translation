@@ -187,6 +187,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.3.0-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.4.0-Source.tar.gz`. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).
