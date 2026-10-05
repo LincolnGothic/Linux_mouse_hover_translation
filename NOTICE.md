@@ -1,6 +1,6 @@
 # Copyright and license notices
 
-Hover Translate 0.2.0 is a modified work using components of Crow Translate
+Hover Translate 0.3.0 is a modified work using components of Crow Translate
 4.1.0. The application and its corresponding source are licensed under
 **GNU GPL version 3 or later (GPL-3.0-or-later)**. The complete terms are in
 [LICENSE](LICENSE). There is no warranty.
@@ -36,6 +36,14 @@ The binary uses separately installed shared libraries and OCR models:
 | CPU PyTorch 2.14.1 and Argos dependencies | Their respective package licenses and third-party notices | Installed separately; not bundled |
 | Argos English/Chinese models 1.9 | Model-specific notices in the upstream downloads | Downloaded separately; not bundled |
 | CC-CEDICT | Attribution/share-alike license identified in the downloaded edition's complete header | Downloaded from MDBG or supplied by the user; not bundled |
+| GNOME Shell / Mutter / GJS / St | Their respective upstream GPL/LGPL licenses | Installed desktop APIs, not bundled; the original extension source is GPL-3.0-or-later |
+
+The downloaded English/Chinese Argos 1.9 model README files identify the
+underlying OPUS-MT models as CC-BY 4.0, authored by Jörg Tiedemann and Santhosh
+Thottingal. Those original READMEs stay with the models. The downloaded MDBG
+CC-CEDICT header identifies CC-BY-SA 4.0 and retains the referenced CEDICT
+copyright of Paul Andrew Denisowski. Models and dictionary data are not bundled
+in the app installer or source archive.
 
 The Debian development SDK is outside the source tree and is not included in
 the application packages. Its packages retain their own copyright files.

@@ -1,53 +1,75 @@
-# Validation and known limitations — 0.2.0
+# Validation and known limitations — 0.3.0
 
-The application builds on Debian 13 / Qt 6.8.2 and on **Ubuntu 26.04.1 amd64 /
-Qt 6.10.2 / GCC 15.2**. The offline runtime dependencies install on Ubuntu's
-Python 3.14.4, with CPU PyTorch 2.14.1 and Argos Translate 1.11.0; `pip check`
-reports no broken requirements. The cloud proxy's trusted CA bundle was supplied
-to the test container; TLS verification remained enabled.
+Build platforms: Debian 13 / Qt 6.8.2 and Ubuntu 26.04 amd64 / Qt 6.10.2 /
+GCC 15.2. The native Ubuntu runtime uses Python 3.14, CPU PyTorch 2.14.1 and
+Argos Translate 1.11.0. TLS uses trusted CA bundles; verification is enabled.
 
-## Functional checks
+## Regular suites and native Wayland client
 
 ```bash
 dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' \
   ctest --test-dir build --output-on-failure
 bash tools/test-wayland.sh build
+node tests/test_gnome_policy.mjs
 ```
 
-| Suite | What it exercises |
+| Suite | Evidence |
 | --- | --- |
-| `core` | Hover timing, OCR geometry/languages, settings persistence, online HTTP fixture errors/cancellation, actual offline dictionary worker in both directions, queued stale results, worker timeout/recovery, missing runtime errors |
-| `hover_x11` | Real screen capture/Tesseract/online-fixture/popup flow, cache, movement/pause/Escape, focus/selection/clipboard preservation, actual CLI and Settings window |
-| `portal_capture` | Real D-Bus Screenshot request/response protocol with an in-process portal fixture, cancellation, timeout/late response, rejection of nonlocal image URIs, preview cropping, real OCR, actual Python dictionary lookup and clipboard preservation |
+| core | Timing, languages, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
+| hover_x11 | Actual X11 capture/OCR/popup, Escape/pause/movement/cache and focus/selection/clipboard preservation |
+| portal_capture | Screenshot D-Bus fixture, actual crop/OCR/dictionary, invalid URI, cancellation/timeout and clipboard preservation |
+| gnome_bridge | Local extension-protocol fixture, actual OCR/dictionary, HiDPI ratios, invalid/stale captures and canceled work |
+| offline_setup | Truthful downloader identity, complete content, TLS redirect downgrade/truncation rejection and local sentence chunks |
 
-The three suites contain **31 functional cases**, plus six QtTest
-initialization/cleanup entries. Fixtures are labeled and use synthetic text;
-they are not public-service or sentence-model tests.
+The Qt suites use real Tesseract and Python dictionary lookup; synthetic
+samples and local services are labeled. The Weston helper additionally runs
+the portal suite with Qt's native Wayland backend. This does not validate an
+actual GNOME portal permission dialog.
 
-The Wayland helper starts an isolated D-Bus session, Xvfb and a nested Weston
-compositor. The test application uses **Qt's native Wayland backend**, with
-Wayland keyboard/pointer seats. All five portal cases also pass there. It uses
-the same screenshot fixture, not a real GNOME capture backend. On Wayland,
-focus changes can reannounce clipboard offers; tests check unchanged contents
-at every notification rather than interpreting notifications as clipboard writes.
+## Real GNOME 50 automatic hover
 
-## Sentence models: download blocked in cloud and GitHub Actions
+`tools/test-gnome.sh` starts an isolated headless **GNOME Shell 50.1 / Mutter
+50.1** with a 1200×900 virtual monitor and software rendering. It uses private
+session/system buses and user configuration, never an existing desktop.
+`setup_gnome.py` installs/enables the actual extension. Tests then use native
+Wayland windows and Mutter's compositor input API for actual pointer/keyboard
+movement. Screen capture comes from `Shell.Screenshot`, not a PNG fixture.
+No Shell Eval or unsafe mode is used.
 
-This cloud environment currently returns **HTTP 403** for `argos-net.com`,
-before model downloads complete. Its optional `www.mdbg.net` CC-CEDICT export
-is also blocked. The required host additions are saved in the environment
-configuration draft, but saving a draft does not apply it to the running cloud.
-The real-model step in GitHub Actions also returns HTTP 403 when downloading
-the English-to-Chinese model, after the runtime dependencies install successfully.
-Version 0.2.0 is therefore published as a preview with this limitation recorded.
+The live test verifies dwell capture, real OCR, shell popup contents/visibility,
+Escape dismissal without immediate reappearance, pointer movement and pause.
+It first checks a test-authored dictionary; when real model paths are supplied,
+it disables the dictionary and checks English→Chinese and Chinese→English
+hover translation using the downloaded models and actual offline worker.
 
-The real Argos runtime successfully loads through the application and reports
-the missing English/Chinese models. **No real sentence-model translation or
-translation-quality result has been established in this environment.** The
-dictionary tests use small test-authored entries and do not establish a full
-CC-CEDICT download.
+```bash
+export HOVER_GNOME_MODEL_PYTHON=/path/to/offline-data/argos-env/bin/python
+export HOVER_GNOME_MODELS_DIR=/path/to/offline-data/argos-packages
+bash tools/test-gnome.sh build
+```
 
-After the model host is permitted:
+Without those variables the GNOME run explicitly reports dictionary-only
+validation. This is not evidence of sentence-model translation. Current
+0.3.0 native validation supplied both variables and passed the complete flow.
+
+GNOME logs warnings for OS services absent from the isolated container
+(logind/GDM/Polkit/calendar/network), but the actual compositor, native clients,
+pointer input, screenshot API, extension and popup are used. The temporary
+system bus has no host services and does not substitute for these APIs.
+
+## Official downloads and real sentence models
+
+The previous HTTP 403/1010 failure was reproduced with Python urllib's default
+user-agent. The same official URLs accept the truthful HoverTranslate identity.
+0.3.0 downloads complete archives, retains TLS/ZIP/path checks and records
+SHA-256 manifests. Both models and the full MDBG CC-CEDICT dictionary downloaded
+successfully; license/README headers are retained.
+
+Argos 1.9 models contain legacy Stanza resources incompatible with current
+Stanza. The worker now uses deterministic bounded sentence chunks instead of
+that secondary sentence model. The installed runtime/model files are unchanged;
+CTranslate2 still runs the real Argos/OPUS-MT translation models. Socket
+connections remain disabled in the worker.
 
 ```bash
 python3 offline/setup_offline.py --data-dir /path/to/offline-data
@@ -56,45 +78,36 @@ python3 tests/check_offline_models.py ./build/hover-translate \
   --models-dir /path/to/offline-data/argos-packages
 ```
 
-This check forces offline mode and disables dictionary lookup to ensure the
-two results come from real models. The updated GitHub workflow requires it
-before packaging/releasing; check the Actions run for the relevant revision
-for its result. Downloaded models retain their metadata/notices. The setup tool records
-their authoritative HTTPS URL and downloaded SHA-256 and checks archive integrity.
+The check uses offline mode and disables the dictionary. Observed outputs:
+`Hello world → 哈罗世界` and `你好世界 → Hello, world.` The Chinese smoke check
+accepts either 你好 or 哈罗 for hello, plus 世界 for world. These are functionality
+checks, not a broad translation-quality evaluation. Neural models, OCR and
+simple sentence boundaries can produce inaccurate or awkward results.
 
-## User-desktop limitations
+The underlying OPUS-MT models identify CC-BY 4.0; MDBG's dictionary identifies
+CC-BY-SA 4.0. They are downloaded separately, with original notices retained.
 
-- Actual Ubuntu GNOME screenshot authorization, backend behavior, multi-display
-  capture and fractional scaling need verification on the user's desktop.
-- Wayland supports explicit screenshot/region and typed-text workflows.
-  Automatic mouse hover across native Wayland applications remains unsupported.
-- X11 automatic hover retains its one-display, 100%-scaling restriction.
-- OCR can miss small/low-contrast text and English/Chinese mixtures. Source
-  language detection is a Latin/Han heuristic, not general language detection.
-- Offline translation quality/speed depend on the installed models and hardware.
-- CC-CEDICT supplies Chinese word definitions and limited English reverse lookup;
-  it is not a comprehensive English-to-Chinese dictionary.
-- Optional online Mozhi behavior depends on the selected instance. The earlier
-  default-instance check returned a rate-limit error. Offline mode does not use it.
+## Reproduce the native package
 
-## Packaging
+```bash
+bash tools/build-ubuntu26.04.sh --model-check
+```
 
-The 0.2.0 `.deb` is built in Ubuntu 26.04 and uses `dpkg-shlibdeps` to compute
-native library dependencies. It includes the executable, setup/worker scripts,
-desktop entry, icon, documentation and notices; it does not include downloaded
-models, dictionaries or Python libraries. Keep the complete matching source
-archive beside the binary. See [RELEASE.md](RELEASE.md).
+This installs Ubuntu build/GNOME test dependencies in an isolated Docker
+container, runs the regular/Weston/GNOME tests, validates real models, and
+creates the .deb, exact corresponding source and SHA256SUMS together.
+Without `--model-check`, GNOME tests use the dictionary fixture and packaging
+must not be described as real sentence-model validation.
 
-On 2026-10-04, the repeatable `tools/build-ubuntu26.04.sh` build completed,
-including all three suites, the native Wayland fixture checks and both packages.
-The `.deb` installs with `apt` in the Ubuntu test container. Its installed
-version command, setup-helper help and local dictionary lookup in both
-directions pass. The installed executable also loads the real Argos runtime
-and reports the missing sentence models, consistent with the download blocker.
+## Remaining limits
 
-The corresponding-source archive contains all **62 intended files**, including
-local changes and new files, verified byte for byte against the working tree.
-It excludes build output, Python environments, downloaded models and Git
-metadata. SHA-256 checksums are supplied with the two artifacts. The binary
-requires Ubuntu 26.04's Qt libraries (including Qt Core 6.10.2); use a native
-rebuild for distributions with older libraries.
+- Supported Wayland hover compositor: GNOME 50. KDE and other compositors need
+  separate integrations. Extension metadata does not claim other versions.
+- Physical user desktops, GPU drivers, fractional/mixed monitor scaling and
+  actual GNOME manual screenshot permission dialogs remain unverified.
+- Geometry tests cover window/monitor clipping, negative origins and HiDPI
+  ratios, but do not establish every physical multi-monitor layout.
+- X11 hover retains one monitor at 100% scaling.
+- Blur/stylized/low-contrast text and lines wider than the crop can defeat OCR.
+- Online Mozhi tests are local fixtures; public-server availability is not
+  guaranteed. Offline failures do not fall back online.

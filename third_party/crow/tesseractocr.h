@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Modified 2026-10-04 for Hover Translate: expose line geometry, use a
- * cancellation flag and a future watcher, and decouple Crow's settings UI.
+ * cancellation flag and a future watcher, decouple Crow's settings UI,
+ * and improve small/dark screen text with padding, scaling and segmentation
+ * fallback while retaining original image coordinates.
  */
 #pragma once
 #include "aocrprovider.h"

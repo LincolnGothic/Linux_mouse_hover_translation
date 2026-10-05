@@ -36,8 +36,13 @@ QRect windowUnderPointer()
 
 HoverController::HoverController(TesseractOcr *ocr, TranslationService *translator, QObject *parent)
     : QObject(parent), m_ocr(ocr), m_translator(translator),
-      m_popup(new TranslationPopup), m_escape(new X11Escape(this))
+      m_popup(new TranslationPopup), m_escape(new X11Escape(this)), m_gnome(new GnomeHover(this))
 {
+    connect(m_gnome, &GnomeHover::statusChanged, this, [this](const QString &message) {
+        if (m_usingGnome) emit statusChanged(message);
+    });
+    connect(m_gnome, &GnomeHover::popupShown, this, &HoverController::popupShown);
+    connect(m_gnome, &GnomeHover::availabilityChanged, this, &HoverController::availabilityChanged);
     m_clock.start();
     m_poll.setInterval(50);
     connect(&m_poll, &QTimer::timeout, this, &HoverController::poll);
@@ -90,10 +95,11 @@ HoverController::~HoverController()
 
 QString HoverController::platformProblem()
 {
-    if (QGuiApplication::platformName() != "xcb"
-        || qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
-        || qEnvironmentVariableIsSet("WAYLAND_DISPLAY"))
-        return tr("Automatic hover requires X11/Xorg. On Wayland, use Translate screen region instead.");
+    if (qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
+        || qEnvironmentVariableIsSet("WAYLAND_DISPLAY") || QGuiApplication::platformName() == "wayland")
+        return GnomeHover::available() ? QString() : tr("Enable the Hover Translate GNOME extension for Wayland hover. Click Set up GNOME hover, then sign out and back in.");
+    if (QGuiApplication::platformName() != "xcb")
+        return tr("Automatic hover needs the GNOME extension on Wayland, or an X11 desktop.");
     const auto screens = QGuiApplication::screens();
     if (screens.size() != 1 || !qFuzzyCompare(screens.first()->devicePixelRatio(), 1.0))
         return tr("This first version supports one monitor at 100% scaling.");
@@ -110,6 +116,19 @@ bool HoverController::configure(const HoverSettings &settings, QString *error)
     m_settings = settings;
     QString problem;
     const bool valid = SettingsStore::validate(settings, &problem);
+    const bool wayland = qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
+        || qEnvironmentVariableIsSet("WAYLAND_DISPLAY") || QGuiApplication::platformName() == "wayland";
+    const bool wasGnome = m_usingGnome;
+    m_usingGnome = wayland && GnomeHover::available();
+    if (wasGnome && !m_usingGnome) {
+        auto paused = settings; paused.enabled = false; m_gnome->configure(paused);
+    }
+    if (valid && m_usingGnome) {
+        const bool configured = m_gnome->configure(settings, &problem);
+        m_enabled = configured && settings.enabled;
+        if (error) *error = problem;
+        return configured;
+    }
     if (valid && settings.enabled) {
         problem = platformProblem();
         if (problem.isEmpty() && !m_ocr->init("eng+chi_sim", settings.tessdataPath.toUtf8()))

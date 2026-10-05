@@ -2,153 +2,149 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-Open-source **English ↔ Simplified Chinese** translation for Linux. Version
-0.2.0 defaults to local Argos translation, with optional CC-CEDICT word
-definitions. Download the runtime and models once; translation then needs no
-API key or online service. Licensed under **GPL-3.0-or-later**, with preserved
-[Crow Translate notices](NOTICE.md) and [upstream provenance](docs/UPSTREAM.md).
+Open-source **English ↔ Simplified Chinese** translation where you point.
+Version **0.3.0** adds automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland**
+through the included GNOME extension. Local Tesseract OCR, Argos sentence
+translation and optional CC-CEDICT word definitions require no API key.
+Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
+[upstream provenance](docs/UPSTREAM.md).
 
-## Ubuntu 26.04: install and start
+**This is a preview.** Real pointer capture, OCR, sentence translation and
+shell popups pass in a headless GNOME 50 compositor. Physical desktops,
+fractional scaling and other GNOME versions remain unverified. The installer
+does not bundle translation models. See [validation](docs/TESTING.md).
 
-Use the **Ubuntu 26.04 amd64** package and its matching source archive:
+## Install on Ubuntu 26.04 amd64
 
-[Download release assets](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases).
-
-**0.2.0 is a preview.** Argos model downloads currently return HTTP 403 in the
-cloud and GitHub validation runs. Real sentence translation remains unverified;
-the installer does not include models. See the release notes before installing.
-
-```bash
-sudo apt install ./hover-translate_0.2.0_amd64.deb
-hover-translate
-```
-
-In Settings, keep **Translation → Offline**, click **Install offline models**,
-and wait for the one-time download to finish. This installs a private Python
-environment, CPU PyTorch, Argos Translate 1.11.0, and English/Chinese models
-1.9 under `~/.local/share/hover-translate`. System Python is left intact.
-The optional CC-CEDICT download supplies word definitions. Setup requires
-internet access and storage for the runtime and models.
-
-Click **Test translation**, then choose **Translate text** or **Translate
-screen region**. Set the target to English for Chinese → English, or Simplified
-Chinese for English → Chinese. The first sentence request loads its model;
-later requests reuse it while the reader remains open. Translation quality
-depends on the model and OCR quality; review important translations.
-
-For setup errors, run the same installer in a terminal:
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.3.0),
+including the installer, matching complete source and checksums.
+Quit an older running app before upgrading:
 
 ```bash
-hover-translate-offline-setup
+sudo apt install ./hover-translate_0.3.0_amd64.deb
+/usr/bin/hover-translate
 ```
 
-Detailed instructions: [Ubuntu 26.04 guide](docs/UBUNTU-26.04.md). The earlier
-v0.1.0 public release does not contain these offline or screen-region features.
+1. Click **Set up GNOME hover**. The helper installs/enables this extension for
+   your account, preserves other extensions and backs up earlier copies.
+   **Sign out and back in**, then reopen Hover Translate. GNOME loads the new
+   extension at login; the hover checkbox becomes available.
+2. Keep **Translation → Offline**, click **Install offline models**, and keep
+   the app open until installation finishes. This downloads a private CPU
+   Python runtime, Argos Translate 1.11.0, both 1.9 translation models and an
+   optional dictionary under `~/.local/share/hover-translate`.
+3. Set the target to **Simplified Chinese** for English → Chinese, or
+   **English** for Chinese → English. Click **Test translation**.
+4. Check **Enable hover translation** and click **Apply**. Pause over a line
+   in another app. Move the pointer or press **Escape** to dismiss the popup.
 
-![Offline settings](docs/images/settings.png)
-![Screen-region reader](docs/images/reader.png)
+The extension requires **GNOME 50**. Do not disable GNOME version checks.
+If user extensions are globally disabled, turn them on in GNOME Extensions;
+the helper deliberately preserves that global setting. Keep the app running:
+closing the last window on a desktop without a tray quits the app.
+Detailed help: [Ubuntu guide](docs/UBUNTU-26.04.md).
 
-These are captures from GUI integration tests. The reader uses a small
-test-authored dictionary; it does not demonstrate real sentence-model quality.
+0.3.0 fixes the official hosts' HTTP 403/1010 rejection of Python's default
+user-agent by truthfully identifying Hover Translate. It also replaces
+incompatible legacy Stanza sentence metadata with bounded local splitting.
+Translation stays offline, with no hidden sentence-model downloads.
+For setup details/errors, run `hover-translate-offline-setup` in a terminal.
+The earlier v0.2.0 does not contain Wayland hover support or these fixes.
 
 ## Desktop workflows
 
 | Mode | Desktop | Interaction |
 | --- | --- | --- |
-| Screen region | Wayland or X11, with a screenshot portal/backend | Choose a screenshot, drag around text in the preview, then read the result |
-| Typed text | Wayland or X11 | Enter text and press Ctrl+Enter |
-| Automatic hover | X11/Xorg, one display at 100% scaling | Enable hover, apply settings, and pause the pointer over a line |
+| Automatic hover | GNOME 50 Wayland + included extension | Set up the extension, sign out/in, enable hover and pause over a line |
+| Automatic hover | X11/Xorg, one monitor at 100% scaling | Enable hover, apply settings and pause over a line |
+| Screen region | Wayland/X11 + screenshot portal/backend | Approve a screenshot, then drag around text in the preview |
+| Typed text | Wayland/X11 | Type or paste text, then press Ctrl+Enter |
 
-On Wayland, automatic hover is disabled in Settings. Screen-region capture
-uses the screenshot portal and your desktop's permission dialog. Some portal
-backends let you choose a region, while others return a whole screenshot.
-The local preview lets you select text in either case. Press Enter to process
-the entire preview, or Escape to cancel. The app does not change the clipboard.
+GNOME hover uses the compositor's pointer and screenshot APIs. Capture is
+limited to a 700 × 160 logical-pixel region clipped to the hovered monitor
+and window. Images travel in memory over your local session bus; no screenshot
+files or clipboard writes are needed. GNOME draws the popup near the pointer,
+including above fullscreen windows. Escape is grabbed only while it is shown.
+Lock/overview, movement, pause, app exit and extension disable invalidate work.
+The app does not use Shell Eval or enable GNOME unsafe mode. The extension is
+original GPL source included in both the installer and corresponding source.
 
-Add a desktop keyboard shortcut for `hover-translate --capture`.
-This version does **not** provide automatic hover across native Wayland apps.
-Native client integration is tested with a Wayland compositor and a local
-portal fixture; the actual GNOME permission flow needs verification on your
-desktop. See [validation and limits](docs/TESTING.md).
+KDE and other Wayland compositors need their own integration; this extension
+does not enable hover on them. Mixed-scale/fractional monitor behavior needs
+physical-desktop testing. Small, stylized or blurred text can still defeat OCR.
+0.3.0 enlarges small crops, normalizes dark backgrounds, adds margins and retries
+segmentation. Low-confidence region text stays editable instead of disappearing.
 
-X11 hover captures up to 700 × 160 pixels inside the window under the pointer.
-Its popup preserves focus, selections and the clipboard; movement or Escape
-dismisses it. Small, stylized or low-contrast fonts and long lines can impair
-OCR. The bounded in-memory cache and stale-request cancellation prevent older
-results from replacing newer requests. Offline requests have a 120-second
-limit; online requests have a 10-second limit.
+Manual capture uses the desktop screenshot permission dialog. Select a few
+complete lines in the local preview; Enter uses the whole image and Escape
+cancels. Correct OCR text and press Ctrl+Enter to translate again. An optional
+keyboard shortcut can run `hover-translate --capture`. Actual GNOME portal
+permission dialogs remain separate from the automatic extension's validated
+capture path. GNOME manual capture needs `xdg-desktop-portal-gnome`.
 
-## Dictionaries and privacy
+## Dictionary and privacy
 
-CC-CEDICT is primarily Chinese → English. Exact searches of English definitions
-also return Chinese entries, but are **not** a comprehensive English → Chinese
-dictionary. Text without a matching entry uses Argos sentence translation.
-Uncheck **Show dictionary definitions** to use the model for every translation.
-Settings can point at your own CC-CEDICT `.u8` file.
+CC-CEDICT primarily supplies Chinese → English definitions, with limited exact
+English-definition reverse lookup. Unmatched words and sentences use Argos;
+uncheck **Show dictionary definitions** to force sentence-model translation.
+Optional path fields can point at an existing Python runtime, Argos package
+folder or CC-CEDICT `.u8` file. Blank fields use installed defaults.
 
-The offline worker disables network connections, including implicit model
-downloads. Only the separate setup tool downloads resources. OCR and
-translation run on your computer. The app does not save text history or modify
-the clipboard. The desktop portal manages temporary screenshots. Downloaded
-dictionary/model/runtime notices are retained; these assets are not bundled
-in the application installer or source archive.
+The offline worker blocks network connections. Only explicitly requested setup
+downloads resources; system Python is unchanged. OCR/translation are local,
+with a bounded memory cache and no saved text history. Models and dictionary
+retain their complete upstream notices and are downloaded separately.
+**Online → Mozhi** explicitly sends recognized text to the chosen server,
+which may forward it to Google. Public instances may fail or rate-limit;
+offline errors never automatically switch to an online provider.
 
-**Online → Mozhi** remains an explicit option and sends recognized text to your
-selected server, which may forward it to Google. Public instances can fail or
-be rate-limited. Offline errors never fall back to an online provider.
+Settings normally live in `~/.config/LincolnGothic/HoverTranslate/settings.ini`.
 
-Settings are saved in `~/.config/LincolnGothic/HoverTranslate/settings.ini`.
-With a system tray, closing Settings leaves tray controls available. Without
-a tray, keep a Settings or reader window open.
+## Build and validate
 
-## Build from source
-
-Ubuntu 26.04 or Debian 13, with Qt 6.8+:
+Ubuntu 26.04 or Debian 13, Qt 6.8+:
 
 ```bash
-sudo apt update
 sudo apt install build-essential cmake ninja-build pkg-config \
   qt6-base-dev qt6-base-dev-tools qt6-scxml-dev qt6-svg-plugins qt6-wayland \
   libtesseract-dev libleptonica-dev libxcb1-dev \
-  tesseract-ocr-eng tesseract-ocr-chi-sim fonts-noto-cjk \
-  python3-venv xdg-desktop-portal
+  tesseract-ocr-eng tesseract-ocr-chi-sim fonts-noto-cjk python3-venv
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=OFF
 cmake --build build --parallel 3
-python3 offline/setup_offline.py
 ./build/hover-translate
 ```
 
-Install your desktop's portal backend (GNOME: `xdg-desktop-portal-gnome`).
-Build assets are copied beside the executable; installed assets live in
-`/usr/share/hover-translate`.
-
-## Tests and cloud development
+For the five regular test suites, install `libxcb-xtest0-dev xvfb xauth
+x11-utils dbus-x11 weston`, build with `-DBUILD_TESTING=ON`, then run:
 
 ```bash
-sudo apt install libxcb-xtest0-dev xvfb xauth x11-utils dbus-x11 weston
-cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
-cmake --build build --parallel 3
 dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' \
   ctest --test-dir build --output-on-failure
 bash tools/test-wayland.sh build
+node tests/test_gnome_policy.mjs
 ```
 
-Tests use real Tesseract OCR, X11 hover, Python dictionary lookup and the
-screenshot portal protocol through a local fixture. They verify cropping,
-cancellation, timeout/error handling and clipboard preservation. Online tests
-use a local server fixture. These checks do not establish model translation
-quality or actual GNOME portal behavior.
+A real isolated GNOME test additionally needs `gnome-shell gjs python3-gi
+python3-cairo gir1.2-gtk-4.0 adwaita-icon-theme`:
 
-For the rootless Debian cloud SDK, run `bash tools/bootstrap-cloud.sh`, then
-source `tools/activate-cloud.sh` in each shell. Dependencies live outside the
-checkout at `/workspace/.hover-translation-tools`. Native Ubuntu packaging
-uses an Ubuntu 26.04 environment with installed system libraries; CPack computes
-dependencies with `dpkg-shlibdeps`. Cloud model downloads need `argos-net.com`;
-the optional dictionary needs `www.mdbg.net`.
-For a repeatable Linux/Docker build, use `bash tools/build-ubuntu26.04.sh`.
-Add `--model-check` to require real sentence-model checks before packaging.
+```bash
+bash tools/test-gnome.sh build
+```
 
-## Command-line tools
+The helper creates private D-Bus/configuration directories and a headless GNOME
+compositor; it never modifies the user's existing desktop session. Without
+`HOVER_GNOME_MODEL_PYTHON` and `HOVER_GNOME_MODELS_DIR` it exercises a labeled
+dictionary fixture. With them it also verifies real sentence-model hover in
+both directions. See [test details](docs/TESTING.md).
+
+The rootless cloud SDK is activated with `source tools/activate-cloud.sh`.
+For reproducible Ubuntu/Docker packaging and all real-model/GNOME checks:
+
+```bash
+bash tools/build-ubuntu26.04.sh --model-check
+```
+
+## Command line and distribution
 
 ```bash
 hover-translate --capture
@@ -156,25 +152,16 @@ hover-translate --reader
 hover-translate --ocr image.png
 hover-translate --translate 'Hello world' --target zh-CN --no-dictionary
 hover-translate --translate '你好世界' --target en --no-dictionary
-hover-translate --translate '你好' --target en
 ```
 
-OCR, translation, help and version commands work without a display.
-`--python`, `--models-dir` and `--dictionary` override offline paths.
-`--provider mozhi --instance https://your-mozhi-host` enables online translation;
-`--instance` alone also selects Mozhi for compatibility with 0.1.0.
-`--provider offline` always takes precedence.
+OCR, translation, help and version work without a display. Use `--python`,
+`--models-dir` and `--dictionary` for custom offline paths.
+`--provider mozhi --instance https://your-mozhi-host` explicitly selects online
+translation; `--instance` alone preserves the old online CLI behavior.
+`--provider offline` takes precedence.
 
-## Sharing and contributing
-
-Keep the GPL, copyright notices and marked Crow modifications. When sharing
-the binary, provide its complete corresponding source, including build and
-installation scripts. The matching archive is `hover-translate-0.2.0-Source.tar.gz`;
-see [release instructions](docs/RELEASE.md). Redistributed dictionaries and
-models have their own license obligations.
-
-- [简体中文说明](README.zh-CN.md)
-- [Contributing](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-- [Validation](docs/TESTING.md)
-- [Notices](NOTICE.md)
+Keep the GPL, copyright notices and marked modifications. Share the binary
+with its **complete matching source**, including the extension and build/setup
+scripts: `hover-translate-0.3.0-Source.tar.gz`. Separately redistributed models
+and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
+[notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).

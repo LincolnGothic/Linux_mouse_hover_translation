@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 — GNOME Wayland hover
+
+- GNOME 50 extension reads the compositor pointer, captures only the hovered
+  window/monitor region, and displays a shell popup with Escape dismissal.
+  Capture and translation are canceled when the pointer moves, the app pauses,
+  the desktop locks, or the backend disconnects. Screenshots stay in memory.
+- Per-user GNOME setup button installs/enables this extension, preserves other
+  extension settings, and backs up previous copies. Sign out/in after setup.
+- Model/dictionary downloader identifies the app with an honest user-agent,
+  fixing the official hosts' HTTP 403/1010 response to Python urllib's default.
+- Deterministic bounded sentence splitting replaces incompatible legacy Stanza
+  metadata, without downloading another runtime model or changing installed
+  libraries. Actual Argos English/Chinese models work in both directions.
+- OCR enlarges small text, normalizes dark backgrounds, adds crop margins and
+  retries segmentation. Geometry remains in original image coordinates.
+  Low-confidence region text remains editable instead of being discarded.
+- Added bridge/stale-result/HiDPI/OCR/download checks and a real GNOME 50
+  pointer/capture/OCR/model/popup test on Ubuntu 26.04. Physical user desktops,
+  fractional monitor scaling and other GNOME versions remain unverified.
+
 ## 0.2.0 — offline translation and screen regions
 
 - Offline is now the default: persistent Argos worker, two translation

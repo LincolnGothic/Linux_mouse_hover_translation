@@ -23,6 +23,8 @@ private slots:
     void settingsRejectInvalidEndpoints();
     void corruptSettingsDisableCapture();
     void englishAndChineseOcr();
+    void smallScreenTextOcr_data();
+    void smallScreenTextOcr();
     void missingModelFails();
     void translationBothDirections();
     void translationTimeoutAndRecovery();
@@ -153,6 +155,35 @@ void CoreTest::englishAndChineseOcr()
     }
     QVERIFY(english);
     QVERIFY(chinese);
+}
+
+void CoreTest::smallScreenTextOcr_data()
+{
+    QTest::addColumn<int>("pixels"); QTest::addColumn<bool>("dark");
+    QTest::newRow("small-light") << 10 << false;
+    QTest::newRow("small-dark") << 10 << true;
+    QTest::newRow("normal-dark") << 14 << true;
+}
+
+void CoreTest::smallScreenTextOcr()
+{
+    QFETCH(int,pixels); QFETCH(bool,dark);
+    QImage image(280,35,QImage::Format_RGB32); image.fill(dark ? QColor("#202124") : Qt::white);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(pixels);
+    painter.setFont(font); painter.setPen(dark ? Qt::white : Qt::black);
+    painter.drawText(2,22,"Hello world"); painter.end();
+    TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim",{}));
+    QSignalSpy recognized(&ocr,&TesseractOcr::linesRecognized);
+    ocr.recognize(image,96); QVERIFY(recognized.wait(8000));
+    const auto lines = qvariant_cast<QVector<OcrLine>>(recognized[0][0]);
+    bool found = false;
+    for (const auto &line : lines) if (line.text.contains("Hello world")) {
+        found = true; QVERIFY(line.confidence >= 35);
+        // Upscaling and padding must not shift hover hit testing.
+        QVERIFY(QRect(QPoint(),image.size()).contains(line.bounds));
+        QCOMPARE(HoverPolicy::lineAt(lines,line.bounds.center(),35),QString("Hello world"));
+    }
+    QVERIFY(found);
 }
 
 void CoreTest::missingModelFails()

@@ -7,6 +7,7 @@
 #include "tesseractocr.h"
 #include "translationservice.h"
 #include "x11escape.h"
+#include "gnomehover.h"
 #include <QCache>
 #include <QElapsedTimer>
 #include <QPointer>
@@ -19,12 +20,13 @@ public:
     ~HoverController() override;
     bool configure(const HoverSettings &settings, QString *error = nullptr);
     void setIgnoredWidgets(const QList<QWidget *> &widgets);
-    bool enabled() const { return m_enabled; }
+    bool enabled() const { return m_usingGnome ? m_gnome->enabled() : m_enabled; }
     TranslationPopup *popup() const { return m_popup; }
     static QString platformProblem();
 signals:
     void statusChanged(const QString &message);
     void popupShown(const QString &source, const QString &translation);
+    void availabilityChanged();
 private:
     void poll();
     void invalidate();
@@ -39,6 +41,7 @@ private:
     TranslationService *m_translator;
     TranslationPopup *m_popup;
     X11Escape *m_escape;
+    GnomeHover *m_gnome;
     QTimer m_poll;
     QElapsedTimer m_clock;
     QList<QPointer<QWidget>> m_ignored;
@@ -49,4 +52,5 @@ private:
     bool m_enabled = false;
     bool m_haveOcr = false;
     bool m_capturePending = false;
+    bool m_usingGnome = false;
 };

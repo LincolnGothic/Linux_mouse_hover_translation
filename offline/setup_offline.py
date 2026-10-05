@@ -17,24 +17,40 @@ import zipfile
 
 INDEX = "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json"
 DICTIONARY = "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
+USER_AGENT = "HoverTranslate/0.3.0 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"
+
+
+def open_download(url, timeout=60):
+    if not url.startswith("https://"):
+        raise ValueError("Downloads require HTTPS.")
+    # The model host rejects Python's default urllib user-agent (HTTP 403/1010).
+    # Identify this application truthfully; retain TLS and redirect checks.
+    response = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout)
+    if not response.geturl().startswith("https://"):
+        response.close()
+        raise ValueError("Download redirected to a non-HTTPS address.")
+    return response
 
 
 def download(url, destination):
     if not url.startswith("https://"):
         raise ValueError("Downloads require HTTPS.")
     digest = hashlib.sha256()
-    with urllib.request.urlopen(url, timeout=60) as response, open(destination, "wb") as out:
-        if not response.geturl().startswith("https://"):
-            raise ValueError("Download redirected to a non-HTTPS address.")
+    with open_download(url) as response, open(destination, "wb") as out:
+        written = 0
         while chunk := response.read(1024 * 1024):
             out.write(chunk)
             digest.update(chunk)
+            written += len(chunk)
+        expected = response.headers.get("Content-Length")
+        if expected is not None and written != int(expected):
+            raise ValueError("Incomplete download. Try setup again.")
     return digest.hexdigest()
 
 
 def install_models(directory):
     directory.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(INDEX, timeout=30) as response:
+    with open_download(INDEX, timeout=30) as response:
         index = json.load(response)
     records = []
     for source, target in (("en", "zh"), ("zh", "en")):

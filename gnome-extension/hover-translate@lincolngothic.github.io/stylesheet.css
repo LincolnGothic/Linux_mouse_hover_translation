@@ -1,0 +1,12 @@
+.hover-translate-popup {
+    background-color: rgba(245, 250, 247, 0.98);
+    color: #18251f;
+    border: 1px solid #7c9c8e;
+    border-radius: 10px;
+    padding: 14px;
+    spacing: 8px;
+    max-width: 460px;
+}
+.hover-translate-source { color: #557065; font-size: 11pt; }
+.hover-translate-result { color: #18251f; font-size: 13pt; }
+.hover-translate-error { color: #963f22; }

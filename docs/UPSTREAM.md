@@ -13,7 +13,7 @@ Every imported component is GPL-3.0-or-later.
 | `onlinetranslator.cpp` | `onlinetranslator.cpp` | None |
 | `onlinetranslator.h` | `onlinetranslator.h` | Removed an unused `QMediaPlayer` include; explicitly included `QObject` for Qt 6.10 compatibility |
 | `ocr/aocrprovider.h` | `aocrprovider.h` | None |
-| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line geometry and confidence; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded |
+| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line geometry and confidence; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded; small/dark-text normalization, padding, scaling and segmentation retry with original coordinates |
 | `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line results and tracks the asynchronous job, language configuration and cancellation state |
 
 Original SHA-256 hashes before modifications:
@@ -35,6 +35,11 @@ uses a separate Argos/dictionary worker, with no changes to Crow's online
 engine protocol. New code also provides desktop-portal screenshot capture,
 region selection and editable text translation. No speech models, Crow icons, translations,
 screenshots, other third-party source or updater code are imported.
+
+Version 0.3.0 adds original GNOME 50 extension code and a Qt session-bus bridge.
+It uses installed GNOME compositor APIs; GNOME source is not vendored.
+The offline worker uses local bounded sentence splitting to avoid incompatible
+legacy Stanza resources; it does not modify installed Argos libraries/models.
 
 Upstream's complete GPL text is retained as `LICENSE` and
 `LICENSES/GPL-3.0-or-later.txt`. Qt, Tesseract, Leptonica and XCB remain external

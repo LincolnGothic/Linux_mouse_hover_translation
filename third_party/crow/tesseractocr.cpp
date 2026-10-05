@@ -9,6 +9,8 @@
 #include <QtConcurrent>
 #include <algorithm>
 #include <memory>
+#include <QPainter>
+#include <cmath>
 #include <tesseract/resultiterator.h>
 
 TesseractOcr::TesseractOcr(QObject *parent) : AOcrProvider(parent)
@@ -70,32 +72,60 @@ void TesseractOcr::recognize(const QImage &source, int dpi)
         return;
     }
     if (isBusy()) return;
-    const QImage image = source.convertToFormat(QImage::Format_RGB888);
+    // Screen text is often only 9–14 pixels tall. Enlarge small captures and
+    // add a margin so LSTM segmentation can see characters at crop edges.
+    const int scale = dpi < 180 && qint64(source.width()) * source.height() <= 1500000 ? 2 : 1;
+    const int border = 12;
+    QImage image = source.convertToFormat(QImage::Format_RGB888);
+    qint64 brightness = 0, samples = 0;
+    for (int x = 0; x < image.width(); x += qMax(1, image.width() / 100)) {
+        brightness += qGray(image.pixel(x, 0)) + qGray(image.pixel(x, image.height() - 1));
+        samples += 2;
+    }
+    for (int y = 0; y < image.height(); y += qMax(1, image.height() / 100)) {
+        brightness += qGray(image.pixel(0, y)) + qGray(image.pixel(image.width() - 1, y));
+        samples += 2;
+    }
+    if (samples && brightness / samples < 128) image.invertPixels();
+    if (scale > 1) image = image.scaled(image.size() * scale, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QImage padded(image.size() + QSize(border * 2, border * 2), QImage::Format_RGB888);
+    padded.fill(Qt::white);
+    { QPainter painter(&padded); painter.drawImage(border, border, image); }
+    image = padded;
     m_canceled.store(false);
     m_busy = true;
     emit started();
-    m_future = QtConcurrent::run([this, image, dpi] {
+    m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size()] {
         OcrResult result;
-        m_tesseract.SetImage(image.constBits(), image.width(), image.height(), 3, image.bytesPerLine());
-        m_tesseract.SetSourceResolution(dpi);
-        if (m_tesseract.Recognize(&m_monitor) != 0) {
-            result.canceled = m_canceled.load();
-            if (!result.canceled) result.error = tr("Could not recognize this screen area.");
-            return result;
-        }
-        if (m_canceled.load()) { result.canceled = true; return result; }
-        const std::unique_ptr<tesseract::ResultIterator> iterator(m_tesseract.GetIterator());
-        if (!iterator) return result;
-        do {
+        for (const auto mode : {tesseract::PSM_SPARSE_TEXT, tesseract::PSM_AUTO}) {
+            m_tesseract.SetPageSegMode(mode);
+            m_tesseract.SetImage(image.constBits(), image.width(), image.height(), 3, image.bytesPerLine());
+            m_tesseract.SetSourceResolution(qMax(70, dpi * scale));
+            if (m_tesseract.Recognize(&m_monitor) != 0) {
+                result.canceled = m_canceled.load();
+                if (!result.canceled) result.error = tr("Could not recognize this screen area.");
+                return result;
+            }
+            if (m_canceled.load()) { result.canceled = true; return result; }
+            QVector<OcrLine> lines;
+            const std::unique_ptr<tesseract::ResultIterator> iterator(m_tesseract.GetIterator());
+            if (iterator) do {
             int left, top, right, bottom;
             if (!iterator->BoundingBox(tesseract::RIL_TEXTLINE, &left, &top, &right, &bottom))
                 continue;
             const std::unique_ptr<char[]> text(iterator->GetUTF8Text(tesseract::RIL_TEXTLINE));
             if (text)
-                result.lines.append({QString::fromUtf8(text.get()).trimmed(),
-                    QRect(left, top, right - left, bottom - top),
+                lines.append({QString::fromUtf8(text.get()).trimmed(),
+                    QRect(QPoint(int(std::floor(double(left - border) / scale)), int(std::floor(double(top - border) / scale))),
+                          QPoint(int(std::ceil(double(right - border) / scale)) - 1, int(std::ceil(double(bottom - border) / scale)) - 1))
+                        .intersected(QRect(QPoint(), originalSize)),
                     iterator->Confidence(tesseract::RIL_TEXTLINE)});
         } while (iterator->Next(tesseract::RIL_TEXTLINE));
+            bool readable = false;
+            for (const auto &line : lines) readable |= line.confidence >= 35 && !line.text.isEmpty();
+            if (result.lines.isEmpty() || readable) result.lines = lines;
+            if (readable) break;
+        }
         return result;
     });
     m_watcher.setFuture(m_future);

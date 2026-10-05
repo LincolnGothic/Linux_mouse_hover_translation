@@ -25,7 +25,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     auto *title = new QLabel(tr("Translate where you point"), this);
     title->setStyleSheet("font-size: 23px; font-weight: 600; color: #22634d;");
     layout->addWidget(title);
-    auto *description = new QLabel(tr("English ↔ Simplified Chinese, with offline translation.\nScreen-region capture: Wayland and X11. Automatic hover: X11."), this);
+    auto *description = new QLabel(tr("English ↔ Simplified Chinese, with offline translation.\nAutomatic hover: GNOME with the extension, or X11."), this);
     description->setStyleSheet("color: #657970;");
     layout->addWidget(description);
     m_enabled = new QCheckBox(tr("Enable hover translation"), this);
@@ -110,7 +110,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.2.0</h2>"
+        browser->setHtml(tr("<h2>Hover Translate 0.3.0</h2>"
             "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"
@@ -134,10 +134,12 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     capture->setObjectName("regionButton");
     auto *reader = actions->addButton(tr("Translate text"), QDialogButtonBox::ActionRole);
     auto *setup = actions->addButton(tr("Install offline models"), QDialogButtonBox::ActionRole);
+    auto *gnomeSetup = actions->addButton(tr("Set up GNOME hover"), QDialogButtonBox::ActionRole);
     layout->addWidget(actions);
     connect(capture, &QPushButton::clicked, this, [this] { emit captureRequested(settings()); });
     connect(reader, &QPushButton::clicked, this, [this] { emit readerRequested(settings()); });
     connect(setup, &QPushButton::clicked, this, &SettingsDialog::setupRequested);
+    connect(gnomeSetup, &QPushButton::clicked, this, &SettingsDialog::gnomeSetupRequested);
 }
 
 void SettingsDialog::setSettings(const HoverSettings &settings)
@@ -171,3 +173,9 @@ HoverSettings SettingsDialog::settings() const
 }
 void SettingsDialog::setStatus(const QString &status) { m_status->setText(status); }
 void SettingsDialog::showProblem(const QString &problem) { QMessageBox::warning(this, tr("Hover Translate"), problem); }
+void SettingsDialog::setHoverAvailability(const QString &problem, bool enabled)
+{
+    m_enabled->setEnabled(problem.isEmpty());
+    m_enabled->setToolTip(problem);
+    m_enabled->setChecked(enabled);
+}

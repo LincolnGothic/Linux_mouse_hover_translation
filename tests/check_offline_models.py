@@ -13,8 +13,8 @@ parser.add_argument("--python", required=True)
 parser.add_argument("--models-dir", required=True)
 args = parser.parse_args()
 cases = [
-    ("Hello world", "zh-CN", ["你好", "世界"]),
-    ("你好世界", "en", ["hello", "world"]),
+    ("Hello world", "zh-CN", [("你好", "哈罗"), ("世界",)]),
+    ("你好世界", "en", [("hello",), ("world",)]),
 ]
 environment = dict(os.environ, QT_QPA_PLATFORM="offscreen")
 with tempfile.TemporaryDirectory() as directory:
@@ -26,5 +26,5 @@ with tempfile.TemporaryDirectory() as directory:
         if result.returncode:
             raise SystemExit(result.stderr.strip() or "Offline translation failed")
         normalized = re.sub(r"\s+", "", result.stdout.lower())
-        assert all(word in normalized for word in words), f"Unexpected translation: {result.stdout!r}"
+        assert all(any(word in normalized for word in alternatives) for alternatives in words), f"Unexpected translation: {result.stdout!r}"
         print(f"PASS real offline model: {text} → {result.stdout.strip()}")

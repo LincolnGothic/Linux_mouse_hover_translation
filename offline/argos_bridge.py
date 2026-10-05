@@ -49,18 +49,42 @@ def deny_network(*args, **kwargs):
     raise RuntimeError("Network access is disabled during offline translation. Run offline setup to download missing models.")
 
 
+class LocalSentenceSplitter:
+    """Small deterministic chunks; no additional sentence-model downloads.
+
+    Argos 1.9 models bundle old Stanza metadata which current Stanza cannot
+    load. A hovered line does not need a second neural model to segment it.
+    Keep chunks bounded so long pasted paragraphs are not silently truncated.
+    """
+    def __init__(self, package):
+        pass
+
+    def split_sentences(self, text):
+        sentences = []
+        for sentence in re.split(r"(?<=[。！？!?])\s*|(?<=\.)\s+", text.strip()):
+            sentence = sentence.strip()
+            while len(sentence) > 500:
+                end = sentence.rfind(" ", 0, 500)
+                if end < 200:
+                    end = 500
+                sentences.append(sentence[:end].strip())
+                sentence = sentence[end:].strip()
+            if sentence:
+                sentences.append(sentence)
+        return sentences
+
+
 def local_translate(text, source, target):
     # Load the heavyweight runtime once, only when a dictionary entry is absent.
     import argostranslate.settings as settings
     settings.device = "cpu"
     settings.model_provider = settings.ModelProvider.OPENNMT
     settings.intra_threads = 2
-    import stanza
-    from stanza.pipeline.core import DownloadMethod
-    import functools
-    if not getattr(stanza.Pipeline, "_hover_offline", False):
-        stanza.Pipeline = functools.partial(stanza.Pipeline, download_method=DownloadMethod.NONE)
-        stanza.Pipeline._hover_offline = True
+    import argostranslate.sbd as sbd
+    settings.chunk_type = settings.ChunkType.STANZA
+    # Change only this worker's factory. Installed libraries and model files
+    # remain untouched; the real CTranslate2 translation models still run.
+    sbd.StanzaSentencizer = LocalSentenceSplitter
     import argostranslate.translate as translate
     source_code = "zh" if source == "zh-CN" else "en"
     target_code = "zh" if target == "zh-CN" else "en"

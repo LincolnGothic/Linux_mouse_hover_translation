@@ -16,11 +16,12 @@ cpack --config build/CPackSourceConfig.cmake -B build/release
 (cd build/release && sha256sum *.deb *Source.tar.gz > SHA256SUMS)
 ```
 
-For 0.2.0, build the binary package on Ubuntu 26.04 amd64, with system libraries
+For 0.3.0, build the binary package on Ubuntu 26.04 amd64, with system libraries
 installed so `dpkg-shlibdeps` calculates correct dependencies. Install `file`
 and `dpkg-dev` for this packaging step. It also depends
 on OCR language packages, Python venv support, Qt Wayland and the screenshot
-portal. It does not bundle Qt, models, fonts, dictionaries or the Python runtime.
+portal. It also includes the original GNOME extension and per-user setup helper.
+It does not bundle Qt, GNOME, models, fonts, dictionaries or the Python runtime.
 Other distributions should build/package with their own system libraries.
 The local cloud package can be prepared for review while model checks are
 blocked, but must be labeled with that limitation and must not be announced
@@ -43,9 +44,9 @@ Check that the package includes the executable, desktop entry, original icon,
 license and notices:
 
 ```bash
-dpkg-deb --info build/release/hover-translate_0.2.0_amd64.deb
-dpkg-deb --contents build/release/hover-translate_0.2.0_amd64.deb
-tar -tzf build/release/hover-translate-0.2.0-Source.tar.gz
+dpkg-deb --info build/release/hover-translate_0.3.0_amd64.deb
+dpkg-deb --contents build/release/hover-translate_0.3.0_amd64.deb
+tar -tzf build/release/hover-translate-0.3.0-Source.tar.gz
 ```
 
 Before announcing public-server support, test the selected Mozhi instance in
@@ -56,14 +57,14 @@ terms, privacy practices or rights to third-party services.
 
 The GitHub workflow builds, runs all suites and real model checks, and uploads artifacts on `main`
 and pull requests. Pushing a version tag triggers the same checks and then
-creates a GitHub release marked Latest, with the binary, matching source archive
+creates a GitHub prerelease, with the binary, matching source archive
 and checksum file together. All build and real-model checks must pass first.
 The release job uses GitHub's own scoped workflow token;
 no personal token belongs in the repository.
 
 Create the version tag from the source revision intended for the release.
 Include the tested platform and known limitations in the release notes; see
-[RELEASE-NOTES-0.2.0.md](RELEASE-NOTES-0.2.0.md). Check the workflow result and
+[RELEASE-NOTES-0.3.0.md](RELEASE-NOTES-0.3.0.md). Check the workflow result and
 release assets before announcing the release. Use `docs/GITHUB.md` for a manual
 upload if the workflow is unavailable.
 Users who only modify and run the program privately do not have to publish

@@ -38,11 +38,12 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("HoverTranslate");
     app.setOrganizationName("LincolnGothic");
-    app.setApplicationVersion("0.2.0");
+    app.setApplicationVersion("0.3.0");
+    app.setDesktopFileName("io.github.LincolnGothic.HoverTranslate");
     app.setWindowIcon(QIcon(":/icons/hover-translate.svg"));
     QNetworkProxyFactory::setUseSystemConfiguration(true);
     QCommandLineParser parser;
-    parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. X11 hover and Wayland screen-region capture.\n"
+    parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. GNOME Wayland hover with the extension, X11 hover, and screen-region capture.\n"
         "GNU GPL version 3 or later; no warranty. See Settings → About & licenses.");
     parser.addHelpOption();
     parser.addVersionOption();
@@ -142,6 +143,11 @@ int main(int argc, char *argv[])
     pause->setChecked(controller.enabled());
     pause->setEnabled(HoverController::platformProblem().isEmpty());
     pause->setToolTip(HoverController::platformProblem());
+    QObject::connect(&controller, &HoverController::availabilityChanged, &dialog, [&] {
+        const auto problem = HoverController::platformProblem();
+        dialog.setHoverAvailability(problem, controller.enabled());
+        pause->setEnabled(problem.isEmpty()); pause->setToolTip(problem); pause->setChecked(controller.enabled());
+    });
     auto *showSettings = menu.addAction("Settings…");
     auto *captureRegion = menu.addAction("Translate screen region…");
     auto *translateText = menu.addAction("Translate text…");
@@ -197,17 +203,20 @@ int main(int argc, char *argv[])
     });
     QObject::connect(&testClient, &TranslationService::failed, &dialog, [&](quint64, const QString &failure) { dialog.setStatus(failure); testClient.resetOffline(); });
     QProcess installer;
+    QString setupDetail;
     QObject::connect(&dialog, &SettingsDialog::setupRequested, &app, [&] {
         if (installer.state() != QProcess::NotRunning) { dialog.setStatus("Offline setup is already running."); return; }
         const QString helper = offlineAsset("setup_offline.py");
         if (helper.isEmpty()) { dialog.showProblem("The offline setup helper is missing. Reinstall Hover Translate."); return; }
         QDir().mkpath(offlineDataDirectory());
         installer.setProcessChannelMode(QProcess::MergedChannels);
+        setupDetail.clear();
         dialog.setStatus("Downloading the offline runtime and English / Chinese models. This first setup may take several minutes.");
         installer.start("python3", {"-u", helper, "--data-dir", offlineDataDirectory()});
     });
     QObject::connect(&installer, &QProcess::readyReadStandardOutput, &dialog, [&] {
-        const auto lines = QString::fromUtf8(installer.readAllStandardOutput()).trimmed().split('\n');
+        setupDetail = (setupDetail + QString::fromUtf8(installer.readAllStandardOutput())).right(8000);
+        const auto lines = setupDetail.trimmed().split('\n');
         if (!lines.isEmpty()) dialog.setStatus(lines.last().left(500));
     });
     QObject::connect(&installer, &QProcess::errorOccurred, &dialog, [&](QProcess::ProcessError error) {
@@ -216,8 +225,27 @@ int main(int argc, char *argv[])
     QObject::connect(&installer, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), &dialog, [&](int code, QProcess::ExitStatus status) {
         dialog.setStatus(status == QProcess::NormalExit && code == 0
             ? "Offline models installed. Use Test translation to check the selected direction."
-            : "Offline setup failed. Check your connection and run hover-translate-offline-setup in a terminal for details.");
+            : "Offline setup failed: " + setupDetail.trimmed().split('\n').last().left(700)
+                + "\nRun hover-translate-offline-setup in a terminal for full details.");
     });
+    QProcess gnomeInstaller;
+    QString gnomeDetail;
+    QObject::connect(&dialog, &SettingsDialog::gnomeSetupRequested, &app, [&] {
+        if (gnomeInstaller.state() != QProcess::NotRunning) return;
+        const auto helper = offlineAsset("setup_gnome.py");
+        if (helper.isEmpty()) { dialog.showProblem("GNOME setup helper is missing. Reinstall Hover Translate."); return; }
+        gnomeDetail.clear(); gnomeInstaller.setProcessChannelMode(QProcess::MergedChannels);
+        dialog.setStatus("Setting up the GNOME hover extension for your account…");
+        gnomeInstaller.start("python3", {"-u", helper});
+    });
+    QObject::connect(&gnomeInstaller, &QProcess::readyReadStandardOutput, &dialog, [&] {
+        gnomeDetail = (gnomeDetail + QString::fromUtf8(gnomeInstaller.readAllStandardOutput())).right(8000);
+    });
+    QObject::connect(&gnomeInstaller, &QProcess::errorOccurred, &dialog, [&](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) dialog.setStatus("Could not start GNOME setup. Install python3.");
+    });
+    QObject::connect(&gnomeInstaller, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), &dialog,
+        [&](int, QProcess::ExitStatus) { dialog.setStatus(gnomeDetail.trimmed()); });
     const bool haveTray = QSystemTrayIcon::isSystemTrayAvailable();
     if (haveTray) tray.show();
     app.setQuitOnLastWindowClosed(!haveTray);

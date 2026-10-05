@@ -16,12 +16,14 @@ public:
     HoverSettings settings() const;
     void setStatus(const QString &status);
     void showProblem(const QString &problem);
+    void setHoverAvailability(const QString &problem, bool enabled);
 signals:
     void applyRequested(const HoverSettings &settings);
     void testRequested(const HoverSettings &settings);
     void captureRequested(const HoverSettings &settings);
     void readerRequested(const HoverSettings &settings);
     void setupRequested();
+    void gnomeSetupRequested();
 private:
     QCheckBox *m_enabled;
     QCheckBox *m_useDictionary;

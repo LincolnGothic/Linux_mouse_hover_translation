@@ -1,90 +1,81 @@
-# Hover Translate：离线英语 ↔ 简体中文翻译
+# Hover Translate
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-[下载发布包及对应源码](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases)
+开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.3.0** 通过随附的
+**GNOME 50 扩展**，支持 Ubuntu 26.04 默认 Wayland 桌面的自动悬停翻译。
+本地 Tesseract OCR、Argos 句子模型和可选 CC-CEDICT 词典不需要 API 密钥。
+采用 GPL-3.0-or-later，保留 Crow Translate 版权及修改声明。
 
-**0.2.0 为预览版。** Argos 模型下载在云环境及 GitHub 验证中均返回 HTTP 403，
-真实句子翻译尚未验证，安装包也未包含模型。安装前请阅读发布说明。
+本版仍为预览版。已在真实的无显示器 GNOME 50 合成器中验证鼠标输入、
+截图、OCR、双向离线模型翻译及弹窗。用户实际桌面、分数缩放和其他 GNOME
+版本仍需验证。模型不包含在安装包内，需要首次下载。
 
-0.2.0 默认使用本地 Argos 模型进行翻译，可选 CC-CEDICT 词典释义。
-首次下载运行环境及模型后，翻译不需要联网或 API 密钥。
-项目采用 **GPL-3.0-or-later**，保留 Crow Translate 4.1.0 的版权及修改声明。
+## Ubuntu 26.04 安装与使用
 
-## Ubuntu 26.04 安装
-
-使用本次构建的 Ubuntu 26.04 amd64 安装包和对应源码：
-
-```bash
-sudo apt install ./hover-translate_0.2.0_amd64.deb
-hover-translate
-```
-
-在设置中保留 **Translation → Offline**，点击 **Install offline models**。
-首次联网安装会下载私有 Python 环境、CPU PyTorch、Argos Translate 1.11.0
-和两个方向的 1.9 翻译模型，可选下载 CC-CEDICT。
-文件存放在 `~/.local/share/hover-translate`，不修改系统 Python。
-完成后点击 **Test translation**，再使用 **Translate text** 或
-**Translate screen region**。首个句子翻译需要加载模型，速度及准确度取决于
-电脑配置、模型和 OCR 质量。
-
-若安装失败，在终端运行 `hover-translate-offline-setup` 查看完整原因。
-旧版 v0.1.0 发布包不包含这些功能。完整说明见
-[Ubuntu 26.04 使用指南](docs/UBUNTU-26.04.md)。
-
-## Wayland 与 X11
-
-- **Wayland**：桌面截图权限流程和框选区域 OCR 翻译；输入文字翻译。
-- **X11/Xorg**：上述功能，以及单屏、100% 缩放条件下的自动鼠标悬停翻译。
-- 原生 Wayland 全局自动悬停仍未实现，设置中的悬停开关会禁用。
-
-点击 **Translate screen region**，先在系统对话框中确认截图，再在本地
-预览中拖动框选文字。按 Enter 使用整个预览，按 Esc 取消。
-程序不读取全局鼠标坐标，不修改其他应用的文字选择或剪贴板。
-可在桌面键盘设置中添加快捷键，命令为 `hover-translate --capture`。
-
-截图需要 `xdg-desktop-portal` 和桌面后端。标准 Ubuntu GNOME 使用
-`xdg-desktop-portal-gnome`。实际 GNOME 权限流程仍需在用户桌面验证，
-不能把测试用截图服务等同于真实桌面截图。
-
-## 词典与隐私
-
-CC-CEDICT 主要用于中文 → 英文释义，也支持精确匹配英文释义后反查中文，
-但不是完整的英汉词典。没有匹配词条时使用 Argos 句子翻译。
-可取消 **Show dictionary definitions**，让所有文字都使用模型。
-设置支持已有 CC-CEDICT `.u8` 文件；下载文件保留完整版权及许可头。
-
-离线工作进程阻止网络连接，包括隐式下载；只有单独安装程序下载资源。
-OCR 与翻译在本机运行，不保存文字历史。系统截图门户管理临时截图。
-词典、模型和运行时不包含在本项目安装包中，各自保留自己的许可。
-
-**Online → Mozhi** 是可选在线模式，会将识别文字发送给所选服务器，
-可能再转发到 Google。离线失败时不会自动改用在线服务。
-
-## 编译、测试与命令行
-
-Ubuntu 26.04 / Debian 13，Qt 6.8+；编译依赖见 [English README](README.md)。
+从 [v0.3.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.3.0)
+下载 amd64 安装包；对应完整源码和校验文件在同一页面。
+先从托盘菜单退出旧进程，再安装：
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
-cmake --build build --parallel 3
-dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' \
-  ctest --test-dir build --output-on-failure
-bash tools/test-wayland.sh build
-python3 offline/setup_offline.py
-./build/hover-translate --translate 'Hello world' --target zh-CN --no-dictionary
-./build/hover-translate --translate '你好世界' --target en --no-dictionary
+sudo apt install ./hover-translate_0.3.0_amd64.deb
+/usr/bin/hover-translate
 ```
 
-测试依赖包括 `libxcb-xtest0-dev xvfb xauth x11-utils dbus-x11 weston`。
-OCR、翻译、帮助及版本命令支持无图形界面。测试覆盖真实 OCR、X11、词典
-查找和截图门户协议，不等同于句子翻译质量或所有桌面验证。
-详见 [测试说明](docs/TESTING.md)。
+1. 点击 **Set up GNOME hover**，为当前账户安装并启用随附扩展。
+   安装程序备份旧扩展，保留其他扩展设置。**注销并重新登录**，再打开软件。
+2. 保留 **Translation → Offline**，点击 **Install offline models**。
+   保持软件打开，等待私有 CPU Python 环境、两个翻译模型和可选词典安装完毕。
+3. 英文译中文选择 **Simplified Chinese**，中文译英文选择 **English**。
+   点击 **Test translation** 验证。
+4. 勾选 **Enable hover translation**，点击 **Apply**。
+   鼠标在其他应用的一行文字上停留，即在附近显示翻译；移动鼠标或按 Esc 关闭。
 
-## 开源与分发
+扩展只支持 **GNOME 50**，不要关闭 GNOME 的扩展版本检查。
+如果 GNOME 全局禁用了用户扩展，请在 Extensions 中打开总开关。
+没有托盘时请保留软件窗口；关闭最后一个窗口会退出软件并停止自动翻译。
+KDE 和其他 Wayland 桌面需要单独的集成，本扩展不支持。
 
-许可证见 [LICENSE](LICENSE)，依赖及版权见 [NOTICE.md](NOTICE.md)，
-上游版本与修改见 [docs/UPSTREAM.md](docs/UPSTREAM.md)。
-分发二进制时同时提供完整对应源码，包含修改和构建、安装脚本。
-源码包为 `hover-translate-0.2.0-Source.tar.gz`。另行分发词典和模型时须
-遵守各自许可。发布步骤见 [docs/RELEASE.md](docs/RELEASE.md)。
+0.3.0 修复了官方模型服务器拒绝 Python 默认下载标识而返回 HTTP 403 的问题，
+下载器使用真实的软件名称。旧模型的 Stanza 元数据不兼容问题也已修复，
+使用本地分句，不会隐式下载额外模型。安装失败时运行
+`hover-translate-offline-setup` 查看完整原因。
+数据默认存放在 `~/.local/share/hover-translate`，不修改系统 Python。
+旧版 0.2.0 不包含这些修复或 Wayland 自动悬停支持。
+
+## 截图、词典与隐私
+
+**Translate screen region** 仍可手动截图。批准桌面截图后，在预览中拖动
+框选完整文字；Enter 使用整个图像，Esc 取消。可修改识别文字后按 Ctrl+Enter。
+小字号和暗色背景的 OCR 已改进，低置信度文字保留供修改。
+**Translate text** 可输入文字，不依赖 OCR。
+
+GNOME 自动悬停只在启用时读取全局鼠标位置，截取鼠标所在窗口及屏幕内的局部
+区域，图像只在内存和本机会话总线上传递，不写截图文件或剪贴板。
+锁屏、概览、移动鼠标、暂停、退出软件和停用扩展均取消任务。
+软件不调用 Shell Eval，不启用 GNOME unsafe mode。
+手动截图门户权限流程与自动悬停不同，仍需在用户实际桌面验证。
+
+CC-CEDICT 主要提供中译英词义，以及有限的英文释义精确反查；句子使用 Argos。
+取消 **Show dictionary definitions** 可强制用模型。可选路径留空使用默认值。
+离线工作进程阻止网络连接；只有显式安装程序联网下载。
+**Online → Mozhi** 会发送文字到所选服务器，不会在离线失败时自动启用。
+模型和词典保留原始许可声明，不包含在本项目分发包内。
+
+## 编译、验证与分发
+
+依赖、开发和命令行步骤见 [English README](README.md)。
+完整 Ubuntu/Docker 构建和真实模型验证：
+
+```bash
+bash tools/build-ubuntu26.04.sh --model-check
+```
+
+常规测试涵盖 OCR、X11、GNOME 桥接、截图门户、下载及取消逻辑；
+额外的 `tools/test-gnome.sh` 使用隔离的真实 GNOME 合成器。
+详细证据及限制见 [docs/TESTING.md](docs/TESTING.md)。
+
+分发二进制时同时提供完整对应源码，包括扩展及构建、安装脚本。
+本版对应 `hover-translate-0.3.0-Source.tar.gz`。
+版权和许可见 [NOTICE.md](NOTICE.md)，上游来源见
+[docs/UPSTREAM.md](docs/UPSTREAM.md)。

@@ -118,7 +118,15 @@ ScreenReader::ScreenReader(QWidget *parent) : QDialog(parent)
         QStringList text;
         for (const auto &line : lines) if (line.confidence >= 35 && !line.text.trimmed().isEmpty()) text.append(line.text.trimmed());
         m_source->setPlainText(text.join('\n'));
-        if (text.isEmpty()) m_status->setText(tr("No readable text found. Select a clearer or larger region."));
+        if (text.isEmpty()) {
+            // Keep uncertain OCR available for correction instead of silently
+            // discarding all recognized text and looking like capture failed.
+            for (const auto &line : lines) if (!line.text.trimmed().isEmpty()) text.append(line.text.trimmed());
+            m_source->setPlainText(text.join('\n'));
+            m_status->setText(text.isEmpty()
+                ? tr("No readable text found. Enlarge the original text and select complete lines with a margin.")
+                : tr("OCR confidence is low. Review or correct the text, then click Translate."));
+        }
         else translateText();
     });
     connect(&m_ocr, &TesseractOcr::failed, this, [this](const QString &error) { m_status->setText(error); });
