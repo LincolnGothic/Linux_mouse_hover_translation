@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2022 Volk Milit <javirrdar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Modified 2026-10-04: see the header and docs/UPSTREAM.md.
+ * Modified 2026-10-05: see the header and docs/UPSTREAM.md.
  */
 #include "tesseractocr.h"
 #include <QtConcurrent>
@@ -67,6 +67,11 @@ bool TesseractOcr::init(const QByteArray &languages, const QByteArray &path,
 
 void TesseractOcr::recognize(const QImage &source, int dpi)
 {
+    recognizeLayout(source, dpi, false);
+}
+
+void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraphLayout)
+{
     if (!isConfigured() || source.isNull()) {
         emit failed(tr("OCR needs a valid image and the English and Simplified Chinese models."));
         return;
@@ -95,9 +100,10 @@ void TesseractOcr::recognize(const QImage &source, int dpi)
     m_canceled.store(false);
     m_busy = true;
     emit started();
-    m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size()] {
+    m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size(), paragraphLayout] {
         OcrResult result;
-        for (const auto mode : {tesseract::PSM_SPARSE_TEXT, tesseract::PSM_AUTO}) {
+        for (const auto mode : {paragraphLayout ? tesseract::PSM_AUTO : tesseract::PSM_SPARSE_TEXT,
+                                paragraphLayout ? tesseract::PSM_SPARSE_TEXT : tesseract::PSM_AUTO}) {
             m_tesseract.SetPageSegMode(mode);
             m_tesseract.SetImage(image.constBits(), image.width(), image.height(), 3, image.bytesPerLine());
             m_tesseract.SetSourceResolution(qMax(70, dpi * scale));
@@ -109,18 +115,39 @@ void TesseractOcr::recognize(const QImage &source, int dpi)
             if (m_canceled.load()) { result.canceled = true; return result; }
             QVector<OcrLine> lines;
             const std::unique_ptr<tesseract::ResultIterator> iterator(m_tesseract.GetIterator());
+            auto bounds = [&](int left, int top, int right, int bottom) {
+                return QRect(QPoint(int(std::floor(double(left - border) / scale)), int(std::floor(double(top - border) / scale))),
+                             QPoint(int(std::ceil(double(right - border) / scale)) - 1, int(std::ceil(double(bottom - border) / scale)) - 1))
+                    .intersected(QRect(QPoint(), originalSize));
+            };
+            int block = -1, paragraph = -1;
             if (iterator) do {
-            int left, top, right, bottom;
-            if (!iterator->BoundingBox(tesseract::RIL_TEXTLINE, &left, &top, &right, &bottom))
-                continue;
-            const std::unique_ptr<char[]> text(iterator->GetUTF8Text(tesseract::RIL_TEXTLINE));
-            if (text)
-                lines.append({QString::fromUtf8(text.get()).trimmed(),
-                    QRect(QPoint(int(std::floor(double(left - border) / scale)), int(std::floor(double(top - border) / scale))),
-                          QPoint(int(std::ceil(double(right - border) / scale)) - 1, int(std::ceil(double(bottom - border) / scale)) - 1))
-                        .intersected(QRect(QPoint(), originalSize)),
-                    iterator->Confidence(tesseract::RIL_TEXTLINE)});
-        } while (iterator->Next(tesseract::RIL_TEXTLINE));
+                if (iterator->IsAtBeginningOf(tesseract::RIL_BLOCK)) ++block;
+                if (iterator->IsAtBeginningOf(tesseract::RIL_PARA)) ++paragraph;
+                int left, top, right, bottom;
+                if (!iterator->BoundingBox(tesseract::RIL_TEXTLINE, &left, &top, &right, &bottom)) continue;
+                const std::unique_ptr<char[]> text(iterator->GetUTF8Text(tesseract::RIL_TEXTLINE));
+                if (!text) continue;
+                OcrLine line;
+                line.text = QString::fromUtf8(text.get()).simplified();
+                line.bounds = bounds(left, top, right, bottom);
+                line.confidence = iterator->Confidence(tesseract::RIL_TEXTLINE);
+                line.block = block; line.paragraph = paragraph;
+                tesseract::ResultIterator wordIterator(*iterator);
+                int cursor = 0;
+                do {
+                    const std::unique_ptr<char[]> wordText(wordIterator.GetUTF8Text(tesseract::RIL_WORD));
+                    if (wordText && wordIterator.BoundingBox(tesseract::RIL_WORD, &left, &top, &right, &bottom)) {
+                        const auto word = QString::fromUtf8(wordText.get()).simplified();
+                        const int offset = line.text.indexOf(word, cursor);
+                        line.words.append({word, bounds(left, top, right, bottom),
+                                           wordIterator.Confidence(tesseract::RIL_WORD), offset});
+                        if (offset >= 0) cursor = offset + word.size();
+                    }
+                    if (wordIterator.IsAtFinalElement(tesseract::RIL_TEXTLINE, tesseract::RIL_WORD)) break;
+                } while (wordIterator.Next(tesseract::RIL_WORD));
+                lines.append(line);
+            } while (iterator->Next(tesseract::RIL_TEXTLINE));
             bool readable = false;
             for (const auto &line : lines) readable |= line.confidence >= 35 && !line.text.isEmpty();
             if (result.lines.isEmpty() || readable) result.lines = lines;

@@ -18,6 +18,8 @@ private slots:
     void dwellAndMovement();
     void blockedAndDismissed();
     void lineSelection();
+    void wordAndSentenceSelection();
+    void wrappedSentenceOcr();
     void fixedTargetLanguage();
     void settingsPersist();
     void settingsRejectInvalidEndpoints();
@@ -77,6 +79,72 @@ void CoreTest::lineSelection()
     QVERIFY(HoverPolicy::lineAt(lines, {260,60}).isEmpty());
 }
 
+void CoreTest::wordAndSentenceSelection()
+{
+    QVector<OcrLine> lines{
+        {"Previous sentence. This sentence", {10,10,300,20}, 95,
+            {{"Previous",{10,10,70,20},95,0},{"This",{180,10,40,20},95,19}}, 0, 0},
+        {"wraps onto another line. Next sentence.", {10,40,300,20}, 95,
+            {{"wraps",{10,40,45,20},95,0},{"Next",{210,40,40,20},95,25}}, 0, 0},
+        {"Different paragraph.", {10,70,200,20},95,{{"Different",{10,70,85,20},95,0}},0,1}
+    };
+    QCOMPARE(HoverPolicy::textAt(lines,{25,45},"word"),QString("wraps"));
+    QCOMPARE(HoverPolicy::textAt(lines,{25,45},"line"),lines[1].text);
+    QCOMPARE(HoverPolicy::textAt(lines,{25,45},"sentence"),QString("This sentence wraps onto another line."));
+    QCOMPARE(HoverPolicy::textAt(lines,{220,45},"sentence"),QString("Next sentence."));
+    QVERIFY(HoverPolicy::textAt(lines,{150,45},"word").isEmpty());
+    QVERIFY(HoverPolicy::textAt(lines,{25,100},"sentence").isEmpty());
+    auto altered = lines;
+    altered[0].paragraph = 4;
+    QCOMPARE(HoverPolicy::textAt(altered,{25,45},"sentence"),QString("wraps onto another line."));
+    altered = lines; altered[1].bounds.translate(400,0); altered[1].words[0].bounds.translate(400,0);
+    QCOMPARE(HoverPolicy::textAt(altered,{425,45},"sentence"),QString("wraps onto another line."));
+    altered = lines; altered[1].bounds.translate(0,90); altered[1].words[0].bounds.translate(0,90);
+    QCOMPARE(HoverPolicy::textAt(altered,{25,135},"sentence"),QString("wraps onto another line."));
+    altered = lines; altered[0].confidence = 20;
+    QCOMPARE(HoverPolicy::textAt(altered,{25,45},"sentence"),QString("wraps onto another line."));
+    // Never expand an unpunctuated paragraph beyond three lines.
+    QVector<OcrLine> paragraph;
+    for (int i=0;i<6;++i) paragraph.append({"A fragment without punctuation",{10,10+i*30,300,20},95,
+        {{"fragment",{30,10+i*30,70,20},95,2}},0,0});
+    QCOMPARE(HoverPolicy::textAt(paragraph,{40,75},"sentence"),paragraph[2].text);
+    paragraph[2].text = QString(301,'a');
+    QVERIFY(HoverPolicy::textAt(paragraph,{40,75},"sentence").isEmpty());
+    const QVector<OcrLine> wrapped{
+        {"A hyphenated trans-",{10,10,230,20},95,{{"trans-",{180,10,60,20},95,13}},0,0},
+        {"lation across three",{10,40,230,20},95,{{"lation",{10,40,60,20},95,0}},0,0},
+        {"lines is complete.",{10,70,230,20},95,{{"lines",{10,70,50,20},95,0}},0,0}
+    };
+    QCOMPARE(HoverPolicy::textAt(wrapped,{20,45},"sentence"),QString("A hyphenated translation across three lines is complete."));
+    const QVector<OcrLine> chinese{{"第一句。第二句！",{10,10,200,20},95,
+        {{"第二句",{100,10,60,20},95,4}},0,0}};
+    QCOMPARE(HoverPolicy::textAt(chinese,{120,15},"sentence"),QString("第二句！"));
+    const QVector<OcrLine> punctuation{{"(world!)",{10,10,100,20},95,
+        {{"(world!)",{10,10,100,20},95,0}},0,0}};
+    QCOMPARE(HoverPolicy::textAt(punctuation,{20,15},"word"),QString("world"));
+}
+
+void CoreTest::wrappedSentenceOcr()
+{
+    QImage image(650,170,QImage::Format_RGB32); image.fill(Qt::white);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(24);
+    painter.setFont(font); painter.setPen(Qt::black);
+    painter.drawText(20,50,"This sentence continues");
+    painter.drawText(20,85,"on the next line."); painter.end();
+    TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim",{}));
+    QSignalSpy recognized(&ocr,&TesseractOcr::linesRecognized);
+    ocr.recognizeLayout(image,96,true); QVERIFY(recognized.wait(8000));
+    const auto lines = qvariant_cast<QVector<OcrLine>>(recognized[0][0]);
+    bool checked = false;
+    for (const auto &line : lines) for (const auto &word : line.words) if (word.text == "continues") {
+        QVERIFY(image.rect().contains(word.bounds));
+        QCOMPARE(HoverPolicy::textAt(lines,word.bounds.center(),"word"),QString("continues"));
+        QCOMPARE(HoverPolicy::textAt(lines,word.bounds.center(),"sentence"),QString("This sentence continues on the next line."));
+        checked = true;
+    }
+    QVERIFY(checked);
+}
+
 void CoreTest::fixedTargetLanguage()
 {
     QCOMPARE(HoverPolicy::sourceLanguage("Hello world"), QString("en"));
@@ -92,12 +160,13 @@ void CoreTest::settingsPersist()
     SettingsStore store(directory.filePath("sub/settings.ini"));
     HoverSettings settings;
     settings.enabled = true; settings.target = "en"; settings.dwellMs = 900;
-    settings.instance = "https://example.com/mozhi";
+    settings.instance = "https://example.com/mozhi"; settings.textMode = "word";
     QVERIFY(store.save(settings));
     const auto loaded = SettingsStore(store.fileName()).load();
     QCOMPARE(loaded.target, settings.target);
     QCOMPARE(loaded.instance, settings.instance);
     QCOMPARE(loaded.dwellMs, 900);
+    QCOMPARE(loaded.textMode, QString("word"));
     QVERIFY(loaded.enabled);
 }
 
@@ -109,6 +178,8 @@ void CoreTest::settingsRejectInvalidEndpoints()
     QVERIFY(SettingsStore::validInstance("https://example.com"));
     QVERIFY(SettingsStore::validInstance("http://127.0.0.1:8000"));
     QVERIFY(SettingsStore::validInstance("http://[::1]:8000"));
+    HoverSettings settings; settings.textMode = "paragraph";
+    QVERIFY(!SettingsStore::validate(settings));
 }
 
 void CoreTest::corruptSettingsDisableCapture()

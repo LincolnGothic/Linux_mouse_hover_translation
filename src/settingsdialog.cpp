@@ -40,6 +40,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     m_target->addItem(tr("Simplified Chinese / 简体中文"), "zh-CN");
     m_target->addItem(tr("English"), "en");
     form->addRow(tr("Translate into"), m_target);
+    m_textMode = new QComboBox(this);
+    m_textMode->setObjectName("textModeComboBox");
+    m_textMode->addItem(tr("Word — under the pointer"), "word");
+    m_textMode->addItem(tr("Line — current visual line"), "line");
+    m_textMode->addItem(tr("Sentence — up to 3 nearby lines"), "sentence");
+    m_textMode->setToolTip(tr("Sentence mode stays within one paragraph and column, up to 3 lines and 300 characters. If boundaries are uncertain, it uses the current line. Chinese word boundaries depend on OCR."));
+    form->addRow(tr("Hover text"), m_textMode);
     m_provider = new QComboBox(this);
     m_provider->setObjectName("providerComboBox");
     m_provider->addItem(tr("Offline — Argos / dictionary"), "offline");
@@ -110,7 +117,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.3.0</h2>"
+        browser->setHtml(tr("<h2>Hover Translate 0.4.0</h2>"
             "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"
@@ -147,6 +154,7 @@ void SettingsDialog::setSettings(const HoverSettings &settings)
     m_enabled->setChecked(settings.enabled);
     m_target->setCurrentIndex(settings.target == "en" ? 1 : 0);
     m_provider->setCurrentIndex(settings.provider == "mozhi" ? 1 : 0);
+    m_textMode->setCurrentIndex(m_textMode->findData(settings.textMode));
     m_server->setText(settings.instance);
     m_dwell->setValue(settings.dwellMs);
     m_tessdata->setText(settings.tessdataPath);
@@ -162,6 +170,7 @@ HoverSettings SettingsDialog::settings() const
     settings.enabled = m_enabled->isChecked();
     settings.target = m_target->currentData().toString();
     settings.provider = m_provider->currentData().toString();
+    settings.textMode = m_textMode->currentData().toString();
     settings.instance = m_server->text().trimmed();
     settings.dwellMs = m_dwell->value();
     settings.tessdataPath = m_tessdata->text().trimmed();

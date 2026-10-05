@@ -1,18 +1,20 @@
-# Ubuntu 26.04 / GNOME 50 quick start — 0.3.0
+# Ubuntu 26.04 / GNOME 50 quick start — 0.4.0
 
 ## Upgrade
 
 Quit the old app through its tray menu first. Install the amd64 package:
 
 ```bash
-sudo apt install ./hover-translate_0.3.0_amd64.deb
+sudo apt install ./hover-translate_0.4.0_amd64.deb
 /usr/bin/hover-translate --version
 /usr/bin/hover-translate
 ```
 
-Version must show **0.3.0**. An older local build or launcher can shadow the
+Version must show **0.4.0**. An older local build or launcher can shadow the
 packaged binary; `/usr/bin/hover-translate` explicitly starts the new package.
-The upgrade preserves app settings. Do not delete your configuration.
+The upgrade preserves app settings and offline models. A working 0.3.0 GNOME
+extension is unchanged; upgrading to 0.4.0 does not require reinstalling the
+extension or signing out. Do not delete your configuration.
 
 ## Automatic hover on Wayland
 
@@ -31,7 +33,7 @@ The upgrade preserves app settings. Do not delete your configuration.
 3. Keep **Translation → Offline**, click **Install offline models**, and keep
    the app open until setup completes. Set the desired target and click
    **Test translation**. Models and dictionary are downloaded separately.
-4. Check **Enable hover translation**, click **Apply**, and pause over a line
+4. Choose **Hover text → Word, Line or Sentence**, then check **Enable hover translation**, click **Apply**, and pause over a line
    in another app. Move the pointer or press **Escape** to dismiss the popup.
 
 Only GNOME 50 is declared compatible. Do not disable extension version checks.
@@ -71,6 +73,19 @@ CC-CEDICT supplies word definitions and limited exact English reverse lookup;
 sentences require the Argos models. Full model/dictionary downloads and real
 sentence translation have been validated with 0.3.0.
 
+## Hover text and dictionary updates
+
+Word uses the OCR token under the pointer; Chinese may select a single character.
+Line preserves the old default. Sentence joins within one OCR paragraph/column,
+up to three lines and 300 characters. Uncertain joins use the current line;
+Sentence mode skips single lines over 300 characters. Punctuation/abbreviations
+and text outside the 700×160 crop can still produce incomplete sentences.
+Use the popup's source text to check selection, or manually select longer text.
+
+CC-CEDICT does not expire. Optional updates every 1–3 months can add entries:
+`hover-translate-offline-setup --dictionary-only`. Restart afterward to clear
+cached definitions. This does not refresh the Argos sentence models.
+
 ## Manual capture
 
 Click **Translate screen region**, approve/select a screenshot in the desktop
@@ -90,7 +105,7 @@ its operation does not depend on this manual portal dialog.
 
 ## Limits
 
-0.3.0 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
+0.4.0 remains a preview: tested in headless GNOME 50.1 on Ubuntu 26.04,
 including native Wayland targets and real models in both directions.
 Physical desktops, fractional monitor scaling, other GNOME releases and
 actual manual screenshot permission dialogs remain unverified. X11 hover

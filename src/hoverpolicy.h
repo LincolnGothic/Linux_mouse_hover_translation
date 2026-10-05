@@ -6,10 +6,19 @@
 #include <QString>
 #include <QVector>
 
+struct OcrWord {
+    QString text;
+    QRect bounds;
+    float confidence = 0;
+    int offset = -1;
+};
 struct OcrLine {
     QString text;
     QRect bounds;
     float confidence = 0;
+    QVector<OcrWord> words;
+    int block = -1;
+    int paragraph = -1;
 };
 struct OcrResult {
     QVector<OcrLine> lines;
@@ -29,6 +38,7 @@ public:
     static bool moved(QPoint first, QPoint second);
     static QString sourceLanguage(const QString &text);
     static QString lineAt(const QVector<OcrLine> &lines, QPoint point, float minimumConfidence = 50);
+    static QString textAt(const QVector<OcrLine> &lines, QPoint point, const QString &mode, float minimumConfidence = 50);
 private:
     QPoint m_anchor;
     qint64 m_since = 0;

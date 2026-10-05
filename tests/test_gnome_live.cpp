@@ -19,6 +19,8 @@ class TargetWindow : public QWidget {
         painter.setFont(font); painter.setPen(Qt::black);
         painter.drawText(80,350,"Hello world");
         painter.drawText(80,500,"你好世界");
+        painter.drawText(80,650,"This sentence continues");
+        painter.drawText(80,685,"on the next line.");
     }
 };
 
@@ -54,7 +56,7 @@ private slots:
         QTest::qWait(800);
         QTemporaryDir directory;
         QFile dictionary(directory.filePath("cedict.u8")); QVERIFY(dictionary.open(QIODevice::WriteOnly));
-        dictionary.write(QString("# fixture authored for this test\n你好世界 你好世界 [ni3 hao3 shi4 jie4] /Hello world/\n").toUtf8()); dictionary.close();
+        dictionary.write(QString("# fixture authored for this test\n你好世界 你好世界 [ni3 hao3 shi4 jie4] /Hello world/\n你好 你好 [ni3 hao3] /Hello/\n").toUtf8()); dictionary.close();
         HoverSettings settings; settings.enabled = true; settings.dwellMs = 200;
         settings.dictionaryPath = dictionary.fileName(); settings.pythonPath = "python3";
         TesseractOcr ocr; TranslationService translator;
@@ -78,12 +80,25 @@ private slots:
         QTRY_VERIFY(!status().value(2).toBool()); QTest::qWait(500); QCOMPARE(popup.count(),shown);
         input("NotifyPointerMotionRelative",{0.0,100.0});
         QTRY_VERIFY(!status().value(2).toBool());
+        // Changing modes uses the actual compositor crop, OCR word geometry
+        // and backend settings, without changing the GNOME bus protocol.
+        settings.textMode = "word"; QVERIFY(hover.configure(settings)); popup.clear();
+        input("NotifyPointerMotionRelative",{0.0,-100.0});
+        QTRY_VERIFY_WITH_TIMEOUT(popup.count()>0,12000);
+        QCOMPARE(popup.last()[0].toString(),QString("Hello"));
+        QVERIFY(popup.last()[1].toString().contains("你好"));
         if (qEnvironmentVariableIsSet("HOVER_GNOME_MODEL_PYTHON")) {
             settings.pythonPath = qEnvironmentVariable("HOVER_GNOME_MODEL_PYTHON");
             settings.packagesPath = qEnvironmentVariable("HOVER_GNOME_MODELS_DIR");
             settings.useDictionary = false;
+            settings.textMode = "sentence"; QVERIFY(hover.configure(settings)); popup.clear();
+            input("NotifyPointerMotionRelative",{0.0,300.0});
+            QTRY_VERIFY_WITH_TIMEOUT(popup.count()>0,30000);
+            QCOMPARE(popup.last()[0].toString(),QString("This sentence continues on the next line."));
+            QCOMPARE(HoverPolicy::sourceLanguage(popup.last()[1].toString()),QString("zh-CN"));
+            settings.textMode = "line";
             QVERIFY(hover.configure(settings)); popup.clear();
-            input("NotifyPointerMotionRelative",{0.0,-100.0});
+            input("NotifyPointerMotionRelative",{0.0,-300.0});
             QTRY_VERIFY_WITH_TIMEOUT(popup.count()>0,30000);
             QCOMPARE(popup.last()[0].toString(),QString("Hello world"));
             QVERIFY2(popup.last()[1].toString().contains("世界"),qPrintable(popup.last()[1].toString()));

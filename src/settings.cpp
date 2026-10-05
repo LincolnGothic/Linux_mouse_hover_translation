@@ -57,6 +57,8 @@ bool SettingsStore::validate(const HoverSettings &settings, QString *error)
         message = QStringLiteral("Choose offline translation or Mozhi.");
     else if (settings.provider == "mozhi" && !validInstance(settings.instance))
         message = QStringLiteral("Enter an HTTPS Mozhi server URL without credentials, a query, or a fragment. HTTP is allowed only on localhost.");
+    else if (settings.textMode != "word" && settings.textMode != "line" && settings.textMode != "sentence")
+        message = QStringLiteral("Choose Word, Line or Sentence for hover text.");
     else if (settings.dwellMs < 100 || settings.dwellMs > 3000)
         message = QStringLiteral("The hover delay must be between 100 and 3000 milliseconds.");
     if (error) *error = message;
@@ -74,6 +76,7 @@ HoverSettings SettingsStore::load() const
     settings.packagesPath = file.value("offline/packages").toString();
     settings.dictionaryPath = file.value("offline/dictionary").toString();
     settings.useDictionary = file.value("offline/useDictionary", true).toBool();
+    settings.textMode = file.value("hover/textMode", settings.textMode).toString();
     settings.dwellMs = file.value("hover/dwellMs", settings.dwellMs).toInt();
     settings.enabled = file.value("hover/enabled", settings.enabled).toBool();
     settings.tessdataPath = file.value("ocr/tessdataPath").toString();
@@ -85,6 +88,7 @@ HoverSettings SettingsStore::load() const
             settings.target = "zh-CN";
         if (!validInstance(settings.instance))
             settings.instance = "https://mozhi.aryak.me";
+        if (settings.textMode != "word" && settings.textMode != "line" && settings.textMode != "sentence") settings.textMode = "line";
         settings.dwellMs = qBound(100, settings.dwellMs, 3000);
     }
     return settings;
@@ -106,6 +110,7 @@ bool SettingsStore::save(const HoverSettings &settings, QString *error) const
     file.setValue("offline/packages", settings.packagesPath);
     file.setValue("offline/dictionary", settings.dictionaryPath);
     file.setValue("offline/useDictionary", settings.useDictionary);
+    file.setValue("hover/textMode", settings.textMode);
     file.setValue("hover/dwellMs", settings.dwellMs);
     file.setValue("hover/enabled", settings.enabled);
     file.setValue("ocr/tessdataPath", settings.tessdataPath);

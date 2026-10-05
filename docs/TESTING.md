@@ -1,4 +1,4 @@
-# Validation and known limitations — 0.3.0
+# Validation and known limitations — 0.4.0
 
 Build platforms: Debian 13 / Qt 6.8.2 and Ubuntu 26.04 amd64 / Qt 6.10.2 /
 GCC 15.2. The native Ubuntu runtime uses Python 3.14, CPU PyTorch 2.14.1 and
@@ -15,7 +15,7 @@ node tests/test_gnome_policy.mjs
 
 | Suite | Evidence |
 | --- | --- |
-| core | Timing, languages, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
+| core | Timing, languages, word/sentence selection, wrapped-sentence OCR, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
 | hover_x11 | Actual X11 capture/OCR/popup, Escape/pause/movement/cache and focus/selection/clipboard preservation |
 | portal_capture | Screenshot D-Bus fixture, actual crop/OCR/dictionary, invalid URI, cancellation/timeout and clipboard preservation |
 | gnome_bridge | Local extension-protocol fixture, actual OCR/dictionary, HiDPI ratios, invalid/stale captures and canceled work |
@@ -38,9 +38,10 @@ No Shell Eval or unsafe mode is used.
 
 The live test verifies dwell capture, real OCR, shell popup contents/visibility,
 Escape dismissal without immediate reappearance, pointer movement and pause.
-It first checks a test-authored dictionary; when real model paths are supplied,
-it disables the dictionary and checks English→Chinese and Chinese→English
-hover translation using the downloaded models and actual offline worker.
+It first checks a test-authored dictionary, including Word mode. When real
+model paths are supplied, it disables the dictionary, translates a sentence
+wrapped across two lines in Sentence mode, then checks English→Chinese and
+Chinese→English Line hover using the downloaded models and actual offline worker.
 
 ```bash
 export HOVER_GNOME_MODEL_PYTHON=/path/to/offline-data/argos-env/bin/python
@@ -50,7 +51,7 @@ bash tools/test-gnome.sh build
 
 Without those variables the GNOME run explicitly reports dictionary-only
 validation. This is not evidence of sentence-model translation. Current
-0.3.0 native validation supplied both variables and passed the complete flow.
+0.4.0 native validation supplied both variables and passed the complete flow.
 
 GNOME logs warnings for OS services absent from the isolated container
 (logind/GDM/Polkit/calendar/network), but the actual compositor, native clients,
@@ -108,6 +109,9 @@ must not be described as real sentence-model validation.
 - Geometry tests cover window/monitor clipping, negative origins and HiDPI
   ratios, but do not establish every physical multi-monitor layout.
 - X11 hover retains one monitor at 100% scaling.
+- Chinese Word mode uses OCR tokens, which may be single characters. Sentence
+  mode uses heuristic punctuation and a three-line/300-character cap, falling
+  back to the current line for uncertain joins; it skips lines over 300 characters.
 - Blur/stylized/low-contrast text and lines wider than the crop can defeat OCR.
 - Online Mozhi tests are local fixtures; public-server availability is not
   guaranteed. Offline failures do not fall back online.

@@ -3,10 +3,11 @@
  * SPDX-FileCopyrightText: 2022 Volk Milit <javirrdar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Modified 2026-10-04 for Hover Translate: expose line geometry, use a
+ * Modified 2026-10-05 for Hover Translate: expose line geometry, use a
  * cancellation flag and a future watcher, decouple Crow's settings UI,
  * and improve small/dark screen text with padding, scaling and segmentation
- * fallback while retaining original image coordinates.
+ * fallback while retaining original image coordinates. Exposes word boxes
+ * and paragraph IDs for bounded sentence selection.
  */
 #pragma once
 #include "aocrprovider.h"
@@ -30,6 +31,7 @@ public:
     bool isConfigured() const override { return !m_languages.isEmpty(); }
     bool isBusy() const { return m_busy; }
     void recognize(const QImage &image, int dpi) override;
+    void recognizeLayout(const QImage &image, int dpi, bool paragraphLayout);
     void cancel() override;
 signals:
     void linesRecognized(const QVector<OcrLine> &lines);

@@ -34,13 +34,13 @@ GnomeHover::GnomeHover(QObject *parent) : QObject(parent),
     });
     connect(&m_ocr, &TesseractOcr::linesRecognized, this, [this](const QVector<OcrLine> &lines) {
         if (m_enabled && m_ocrEpoch == m_epoch) {
-            m_source = HoverPolicy::lineAt(lines, m_point);
+            m_source = HoverPolicy::textAt(lines, m_point, m_settings.textMode);
             const auto source = HoverPolicy::sourceLanguage(m_source);
             if (!m_source.isEmpty() && !source.isEmpty() && source != m_settings.target) {
                 m_key = source + QChar(0) + m_settings.target + QChar(0) + m_source;
                 if (const auto *cached = m_cache.object(m_key)) result(m_source, *cached);
                 else {
-                    emit statusChanged(tr("Translating the line under the pointer…"));
+                    emit statusChanged(tr("Translating selected text…"));
                     m_translator.translate(m_epoch, m_source, source, m_settings.target, m_settings);
                 }
             } else emit statusChanged(tr("Ready — hover over readable text in the other language."));
@@ -99,7 +99,7 @@ bool GnomeHover::configure(const HoverSettings &settings, QString *error)
             }
         });
     }
-    emit statusChanged(m_enabled ? tr("Ready — hover over text. GNOME captures the line locally.") : tr("Hover translation is paused."));
+    emit statusChanged(m_enabled ? tr("Ready — hover over text. GNOME captures text locally.") : tr("Hover translation is paused."));
     return true;
 }
 
@@ -138,8 +138,8 @@ void GnomeHover::startPending()
     if (!m_enabled || !m_pending || m_ocr.isBusy()) return;
     auto pending = std::move(*m_pending); m_pending.reset();
     m_ocrEpoch = pending.epoch; m_point = pending.point;
-    emit statusChanged(tr("Reading the line under the pointer…"));
-    m_ocr.recognize(pending.image, 96);
+    emit statusChanged(tr("Reading text under the pointer…"));
+    m_ocr.recognizeLayout(pending.image, 96, m_settings.textMode == "sentence");
 }
 
 void GnomeHover::result(const QString &source, const QString &text, bool error)
@@ -147,6 +147,6 @@ void GnomeHover::result(const QString &source, const QString &text, bool error)
     if (!m_enabled) return;
     auto message = method("Result"); message << m_token << source << text << error;
     QDBusConnection::sessionBus().asyncCall(message, 2000);
-    emit statusChanged(error ? text : tr("Ready — move the pointer to translate another line."));
+    emit statusChanged(error ? text : tr("Ready — move the pointer to translate more text."));
     emit popupShown(source, text);
 }

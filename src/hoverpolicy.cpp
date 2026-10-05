@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "hoverpolicy.h"
 #include <QChar>
+#include <QRegularExpression>
 #include <limits>
 
 bool HoverPolicy::moved(QPoint first, QPoint second)
@@ -64,4 +65,94 @@ QString HoverPolicy::lineAt(const QVector<OcrLine> &lines, QPoint point, float m
         }
     }
     return choice;
+}
+
+QString HoverPolicy::textAt(const QVector<OcrLine> &lines, QPoint point, const QString &mode, float minimumConfidence)
+{
+    if (mode == "line") return lineAt(lines, point, minimumConfidence);
+    int anchor = -1, distance = std::numeric_limits<int>::max();
+    for (int i = 0; i < lines.size(); ++i) {
+        const auto &line = lines[i];
+        if (line.confidence < minimumConfidence || line.text.trimmed().isEmpty()
+            || !line.bounds.adjusted(-4, -5, 4, 5).contains(point)) continue;
+        const int d = qAbs(line.bounds.center().y() - point.y());
+        if (d < distance) { anchor = i; distance = d; }
+    }
+    if (anchor < 0) return {};
+    const auto &line = lines[anchor];
+    const OcrWord *hit = nullptr;
+    for (const auto &word : line.words) {
+        if (word.confidence < minimumConfidence || !word.bounds.adjusted(-1, -2, 1, 2).contains(point)) continue;
+        if (!hit || word.bounds.contains(point)) hit = &word;
+        if (word.bounds.contains(point)) break;
+    }
+    if (mode == "word") {
+        if (!hit) return {};
+        QString word = hit->text;
+        while (!word.isEmpty() && !word.front().isLetterOrNumber()) word.remove(0, 1);
+        while (!word.isEmpty() && !word.back().isLetterOrNumber()) word.chop(1);
+        return word;
+    }
+    if (mode != "sentence") return {};
+    const auto fallback = [&]() { return line.text.size() <= 300 ? line.text.simplified() : QString(); };
+    // Without word geometry, a line with several sentences has no reliable
+    // pointer-to-sentence mapping. Never guess a character from its x ratio.
+    if (!hit || hit->offset < 0) return fallback();
+    static const QRegularExpression boundary(QStringLiteral(
+        R"([。！？]+["'”’）)]*\s*|[.!?]+["'”’）)]*(?:\s+|$))"));
+    auto endsSentence = [&](const QString &text) {
+        auto matches = boundary.globalMatch(text.trimmed());
+        while (matches.hasNext()) {
+            const auto match = matches.next();
+            if (match.capturedEnd() == text.trimmed().size()) return true;
+        }
+        return false;
+    };
+    auto adjacent = [&](int upper, int lower) {
+        const auto &a = lines[upper], &b = lines[lower];
+        if (a.block < 0 || a.paragraph < 0 || a.block != b.block || a.paragraph != b.paragraph
+            || a.confidence < minimumConfidence || b.confidence < minimumConfidence) return false;
+        const int height = qMax(a.bounds.height(), b.bounds.height());
+        const int gap = b.bounds.top() - a.bounds.bottom() - 1;
+        const int overlap = qMin(a.bounds.right(), b.bounds.right()) - qMax(a.bounds.left(), b.bounds.left()) + 1;
+        return b.bounds.center().y() > a.bounds.center().y() && gap >= -2 && gap <= height
+            && qMin(a.bounds.height(), b.bounds.height()) * 2 >= height
+            && qAbs(a.bounds.left() - b.bounds.left()) <= height * 2
+            && overlap * 2 >= qMin(a.bounds.width(), b.bounds.width());
+    };
+    int first = anchor, last = anchor;
+    while (first > 0 && adjacent(first - 1, first) && !endsSentence(lines[first - 1].text)) {
+        if (last - first + 1 == 3) return fallback();
+        --first;
+    }
+    QString joined;
+    int pointerOffset = 0;
+    auto append = [&](int index) {
+        const auto text = lines[index].text.simplified();
+        if (!joined.isEmpty()) {
+            const bool dehyphenate = joined.endsWith('-') && joined.size() > 1
+                && joined[joined.size() - 2].isLetter() && !text.isEmpty() && text.front().isLower();
+            if (dehyphenate) joined.chop(1);
+            else if (!(joined.back().script() == QChar::Script_Han && !text.isEmpty()
+                       && text.front().script() == QChar::Script_Han)) joined += ' ';
+        }
+        if (index == anchor) pointerOffset = joined.size() + hit->offset;
+        joined += text;
+    };
+    for (int i = first; i <= last; ++i) append(i);
+    for (;;) {
+        int start = 0, end = -1;
+        auto matches = boundary.globalMatch(joined);
+        while (matches.hasNext()) {
+            const auto match = matches.next();
+            if (match.capturedEnd() <= pointerOffset) start = match.capturedEnd();
+            else { end = match.capturedEnd(); break; }
+        }
+        if (end >= 0) {
+            const auto selected = joined.mid(start, end - start).trimmed();
+            return selected.size() <= 300 ? selected : fallback();
+        }
+        if (last - first + 1 == 3 || last + 1 >= lines.size() || !adjacent(last, last + 1)) return fallback();
+        append(++last);
+    }
 }

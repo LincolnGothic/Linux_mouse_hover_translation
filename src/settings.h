@@ -12,6 +12,7 @@ struct HoverSettings {
     QString packagesPath;
     QString dictionaryPath;
     bool useDictionary = true;
+    QString textMode = QStringLiteral("line");
     int dwellMs = 600;
     bool enabled = false;
     QString tessdataPath;

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 — word, line and bounded sentence hover
+
+- Added saved **Hover text** modes: Word, Line and Sentence. Line remains the
+  default for existing and new settings; changes apply to GNOME and X11 hover.
+- Word mode uses actual OCR word boxes, removes surrounding punctuation and
+  avoids selecting a neighboring word from blank space. Chinese token boundaries
+  depend on Tesseract and may select one character rather than a dictionary word.
+- Sentence mode uses paragraph-aware OCR, pointer-to-word offsets and punctuation
+  to join wrapped text within the same paragraph/column, at most three lines and
+  300 characters. Uncertain or longer joins fall back to the current line;
+  a current line over 300 characters is not selected in Sentence mode.
+- Added actual OCR wrapped-sentence tests and native GNOME mode-switch checks.
+- Documented optional dictionary updates and the need to restart after an update.
+  Existing offline models and the GNOME extension protocol are unchanged.
+
 ## 0.3.0 — GNOME Wayland hover
 
 - GNOME 50 extension reads the compositor pointer, captures only the hovered

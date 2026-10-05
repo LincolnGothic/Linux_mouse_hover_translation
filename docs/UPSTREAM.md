@@ -8,13 +8,13 @@ The tag resolves to that commit. The original release tree is available at
 <https://github.com/KDE/crow-translate/tree/35dc1c5b497c141be7d4e5e613c77caf958b80a0>.
 Every imported component is GPL-3.0-or-later.
 
-| Upstream file (under `src/`) | Local file (under `third_party/crow/`) | Changes dated 2026-10-04 |
+| Upstream file (under `src/`) | Local file (under `third_party/crow/`) | Changes dated 2026-10-04/05 |
 | --- | --- | --- |
 | `onlinetranslator.cpp` | `onlinetranslator.cpp` | None |
 | `onlinetranslator.h` | `onlinetranslator.h` | Removed an unused `QMediaPlayer` include; explicitly included `QObject` for Qt 6.10 compatibility |
 | `ocr/aocrprovider.h` | `aocrprovider.h` | None |
-| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line geometry and confidence; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded; small/dark-text normalization, padding, scaling and segmentation retry with original coordinates |
-| `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line results and tracks the asynchronous job, language configuration and cancellation state |
+| `ocr/tesseractocr.cpp` | `tesseractocr.cpp` | Added line/word geometry, confidence and paragraph IDs; worker completion handling; atomic cancellation; strict validation that both requested OCR models loaded; small/dark-text normalization, padding, scaling and segmentation retry with original coordinates |
+| `ocr/tesseractocr.h` | `tesseractocr.h` | Exposes OCR line/word results and optional paragraph-layout recognition and tracks the asynchronous job, language configuration and cancellation state |
 
 Original SHA-256 hashes before modifications:
 

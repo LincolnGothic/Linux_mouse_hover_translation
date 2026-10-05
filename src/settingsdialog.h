@@ -29,6 +29,7 @@ private:
     QCheckBox *m_useDictionary;
     QComboBox *m_target;
     QComboBox *m_provider;
+    QComboBox *m_textMode;
     QLineEdit *m_server, *m_tessdata;
     QLineEdit *m_python, *m_packages, *m_dictionary;
     QSpinBox *m_dwell;

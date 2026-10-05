@@ -3,8 +3,8 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.3.0** adds automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland**
-through the included GNOME extension. Local Tesseract OCR, Argos sentence
+Version **0.4.0** adds Word, Line and bounded Sentence hover selection.
+Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
 translation and optional CC-CEDICT word definitions require no API key.
 Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
 [upstream provenance](docs/UPSTREAM.md).
@@ -16,12 +16,12 @@ does not bundle translation models. See [validation](docs/TESTING.md).
 
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.3.0),
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.0),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
 ```bash
-sudo apt install ./hover-translate_0.3.0_amd64.deb
+sudo apt install ./hover-translate_0.4.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -35,7 +35,7 @@ sudo apt install ./hover-translate_0.3.0_amd64.deb
    optional dictionary under `~/.local/share/hover-translate`.
 3. Set the target to **Simplified Chinese** for English → Chinese, or
    **English** for Chinese → English. Click **Test translation**.
-4. Check **Enable hover translation** and click **Apply**. Pause over a line
+4. Choose **Hover text → Word, Line or Sentence**. Check **Enable hover translation** and click **Apply**. Pause over a line
    in another app. Move the pointer or press **Escape** to dismiss the popup.
 
 The extension requires **GNOME 50**. Do not disable GNOME version checks.
@@ -59,6 +59,25 @@ The earlier v0.2.0 does not contain Wayland hover support or these fixes.
 | Automatic hover | X11/Xorg, one monitor at 100% scaling | Enable hover, apply settings and pause over a line |
 | Screen region | Wayland/X11 + screenshot portal/backend | Approve a screenshot, then drag around text in the preview |
 | Typed text | Wayland/X11 | Type or paste text, then press Ctrl+Enter |
+
+**Hover text** controls automatic hover only:
+
+- **Word:** translates the OCR word under the pointer, removing surrounding
+  punctuation. Blank space does not select the nearest word. Chinese OCR may
+  identify a single character; linguistic Chinese word segmentation is not yet
+  implemented.
+- **Line:** the current visual line, preserving the previous behavior/default.
+- **Sentence:** follows punctuation across nearby wrapped lines in the same
+  OCR paragraph and column, limited to **3 lines and 300 characters**. Different
+  columns, paragraph breaks and large gaps stop joining. When a complete bounded
+  sentence cannot be found, the current line is used instead; lines longer than
+  300 characters are not selected in this mode. Abbreviations and OCR errors can
+  confuse punctuation-based sentence boundaries. The popup shows selected source
+  text so you can check the result. Use manual region selection for longer text.
+
+When upgrading from a working 0.3.0 installation, quit the old process, install
+0.4.0 and reopen it. Existing models/settings are retained; the extension is
+unchanged, so this upgrade does not require reinstalling it or signing out.
 
 GNOME hover uses the compositor's pointer and screenshot APIs. Capture is
 limited to a 700 × 160 logical-pixel region clipped to the hovered monitor
@@ -87,6 +106,12 @@ capture path. GNOME manual capture needs `xdg-desktop-portal-gnome`.
 CC-CEDICT primarily supplies Chinese → English definitions, with limited exact
 English-definition reverse lookup. Unmatched words and sentences use Argos;
 uncheck **Show dictionary definitions** to force sentence-model translation.
+The dictionary has no expiry and works without scheduled updates. Updating
+occasionally (for example, every 1–3 months) is optional and may add/correct
+entries. Run `hover-translate-offline-setup --dictionary-only`, then restart the
+app to clear cached definitions. This explicitly downloads the current dictionary
+and preserves its notices; it does not update Argos sentence models.
+
 Optional path fields can point at an existing Python runtime, Argos package
 folder or CC-CEDICT `.u8` file. Blank fields use installed defaults.
 

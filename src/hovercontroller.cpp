@@ -55,7 +55,7 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
     connect(m_ocr, &TesseractOcr::linesRecognized, this, [this](const QVector<OcrLine> &lines) {
         if (!m_haveOcr || !current(m_ocrGeneration)) return;
         m_haveOcr = false;
-        m_sourceText = HoverPolicy::lineAt(lines, m_imagePointer);
+        m_sourceText = HoverPolicy::textAt(lines, m_imagePointer, m_settings.textMode);
         const QString source = HoverPolicy::sourceLanguage(m_sourceText);
         if (m_sourceText.isEmpty() || source.isEmpty() || source == m_settings.target) {
             emit statusChanged(tr("Ready — hover over text in the other language."));
@@ -206,8 +206,8 @@ void HoverController::capture()
     m_imagePointer = m_capturePointer - crop.topLeft();
     m_ocrGeneration = m_policy.generation();
     m_haveOcr = true;
-    emit statusChanged(tr("Reading the line under the pointer…"));
-    m_ocr->recognize(image, 96);
+    emit statusChanged(tr("Reading text under the pointer…"));
+    m_ocr->recognizeLayout(image, 96, m_settings.textMode == "sentence");
 }
 
 QString HoverController::cacheKey(const QString &text, const QString &source) const
@@ -222,6 +222,6 @@ void HoverController::showResult(const QString &text, bool error)
 {
     m_popup->showTranslation(m_capturePointer, m_sourceText, text, m_settings.target, error);
     m_escape->grab();
-    emit statusChanged(error ? text : tr("Ready — move the pointer to translate another line."));
+    emit statusChanged(error ? text : tr("Ready — move the pointer to translate more text."));
     emit popupShown(m_sourceText, text);
 }

@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.3.0** 通过随附的
+开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.4.0** 新增单词、当前行及有范围限制的句子模式。通过随附的
 **GNOME 50 扩展**，支持 Ubuntu 26.04 默认 Wayland 桌面的自动悬停翻译。
 本地 Tesseract OCR、Argos 句子模型和可选 CC-CEDICT 词典不需要 API 密钥。
 采用 GPL-3.0-or-later，保留 Crow Translate 版权及修改声明。
@@ -13,12 +13,12 @@
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.3.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.3.0)
+从 [v0.4.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.0)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 
 ```bash
-sudo apt install ./hover-translate_0.3.0_amd64.deb
+sudo apt install ./hover-translate_0.4.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -43,6 +43,21 @@ KDE 和其他 Wayland 桌面需要单独的集成，本扩展不支持。
 数据默认存放在 `~/.local/share/hover-translate`，不修改系统 Python。
 旧版 0.2.0 不包含这些修复或 Wayland 自动悬停支持。
 
+## 悬停文字范围
+
+在 **Hover text** 中选择后点击 **Apply**：
+
+- **Word**：只翻译鼠标下的 OCR 单词，去掉外围标点。中文分词目前依赖 OCR，
+  有时只识别一个汉字，尚未实现词典辅助的中文分词。
+- **Line**：翻译当前视觉行，保留原有行为，也是默认设置。
+- **Sentence**：按标点拼接同一段落、同一列的邻近折行，最多 **3 行、300 字符**。
+  遇到段落、列或较大的行间隔停止拼接；无法确定完整句子时退回当前行。
+  本模式不选择超过 300 字符的单行。缩写、标点和 OCR 错误仍可能影响分句。
+  弹窗显示实际选择的原文；较长内容建议手动框选。
+
+已正常使用 0.3.0 的用户只需退出旧进程、安装 0.4.0 后重新启动。
+模型和设置保留，扩展未改动，本次升级不需要重新安装扩展或注销。
+
 ## 截图、词典与隐私
 
 **Translate screen region** 仍可手动截图。批准桌面截图后，在预览中拖动
@@ -57,6 +72,9 @@ GNOME 自动悬停只在启用时读取全局鼠标位置，截取鼠标所在�
 手动截图门户权限流程与自动悬停不同，仍需在用户实际桌面验证。
 
 CC-CEDICT 主要提供中译英词义，以及有限的英文释义精确反查；句子使用 Argos。
+词典没有有效期，不需要定期更新才能使用。可按需要每 1–3 个月运行
+`hover-translate-offline-setup --dictionary-only` 下载当前版本，随后重启软件
+清除旧词义缓存。此操作不会更新 Argos 句子模型。
 取消 **Show dictionary definitions** 可强制用模型。可选路径留空使用默认值。
 离线工作进程阻止网络连接；只有显式安装程序联网下载。
 **Online → Mozhi** 会发送文字到所选服务器，不会在离线失败时自动启用。
@@ -76,6 +94,6 @@ bash tools/build-ubuntu26.04.sh --model-check
 详细证据及限制见 [docs/TESTING.md](docs/TESTING.md)。
 
 分发二进制时同时提供完整对应源码，包括扩展及构建、安装脚本。
-本版对应 `hover-translate-0.3.0-Source.tar.gz`。
+本版对应 `hover-translate-0.4.0-Source.tar.gz`。
 版权和许可见 [NOTICE.md](NOTICE.md)，上游来源见
 [docs/UPSTREAM.md](docs/UPSTREAM.md)。

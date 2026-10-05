@@ -111,6 +111,6 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" --verify-tag --prerelease --latest=false \
-            --title "Hover Translate $RELEASE_TAG — GNOME Wayland hover" \
+            --title "Hover Translate $RELEASE_TAG (preview)" \
             --notes-file "docs/RELEASE-NOTES-${RELEASE_TAG#v}.md" \
             release-assets/*.deb release-assets/*Source.tar.gz release-assets/SHA256SUMS
