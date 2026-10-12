@@ -22,7 +22,7 @@ XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.4.2** 将设置分为三个页签，修复小窗口中的横向溢出与按钮被滚动隐藏的问题。通过随附的
+开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.5.0** 新增可选 Azure 翻译，保留 Offline Argos、Mozhi 和适配小窗口的页签设置。通过随附的
 **GNOME 50 扩展**，支持 Ubuntu 26.04 默认 Wayland 桌面的自动悬停翻译。
 本地 Tesseract OCR、Argos 句子模型和可选 CC-CEDICT 词典不需要 API 密钥。
 采用 GPL-3.0-or-later，保留 Crow Translate 版权及修改声明。
@@ -33,12 +33,12 @@ XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.4.2 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.2)
+从 [v0.5.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.5.0)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 
 ```bash
-sudo apt install ./hover-translate_0.4.2_amd64.deb
+sudo apt install ./hover-translate_0.5.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -132,6 +132,6 @@ bash tools/build-ubuntu26.04.sh --model-check
 详细证据及限制见 [docs/TESTING.md](docs/TESTING.md)。
 
 分发二进制时同时提供完整对应源码，包括扩展及构建、安装脚本。
-本版对应 `hover-translate-0.4.2-Source.tar.gz`。
+本版对应 `hover-translate-0.5.0-Source.tar.gz`。
 版权和许可见 [NOTICE.md](NOTICE.md)，上游来源见
 [docs/UPSTREAM.md](docs/UPSTREAM.md)。

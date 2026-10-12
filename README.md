@@ -3,7 +3,7 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.4.2** provides a tabbed settings window that fits smaller screens, with fixed actions and working vertical scrolling.
+Version **0.5.0** adds opt-in Microsoft Azure Translator while preserving Offline Argos, Mozhi and the tabbed settings window.
 Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
 translation and optional CC-CEDICT word definitions require no API key in Offline mode.
 Azure Translator is opt-in; Mozhi remains available.
@@ -17,12 +17,12 @@ does not bundle translation models. See [validation](docs/TESTING.md).
 
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.4.2),
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.5.0),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
 ```bash
-sudo apt install ./hover-translate_0.4.2_amd64.deb
+sudo apt install ./hover-translate_0.5.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -249,6 +249,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.4.2-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.5.0-Source.tar.gz`. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).
