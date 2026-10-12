@@ -8,8 +8,13 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QProcessEnvironment>
+#include <QJsonArray>
+#include <QUrlQuery>
+#include <memory>
 
-TranslationService::TranslationService(QObject *parent) : QObject(parent)
+TranslationService::TranslationService(QObject *parent, QNetworkAccessManager *network, CloudStore cloud)
+    : QObject(parent), m_network(network ? network : new QNetworkAccessManager(this)),
+      m_cloud(std::move(cloud))
 {
     m_timeout.setSingleShot(true);
     connect(&m_timeout, &QTimer::timeout, this, [this] {
@@ -53,6 +58,13 @@ void TranslationService::cancel()
     m_active = false;
     m_pending.clear();
     ++m_serial;
+    if (m_azureReply) {
+        auto *reply = m_azureReply.data();
+        m_azureReply = nullptr;
+        disconnect(reply, nullptr, this, nullptr);
+        reply->abort();
+        reply->deleteLater();
+    }
     if (!m_translator) return;
     // Each request owns its Crow translator. Aborted replies and state-machine
     // events from an old request can never complete a newer request.
@@ -67,9 +79,25 @@ void TranslationService::translate(quint64 request, const QString &text, const Q
 {
     if (settings.provider == "mozhi") {
         stopWorker();
-        translate(request, text, source, target, settings.instance);
+        translateMozhi(request, text, source, target, settings.instance);
         return;
     }
+    if (settings.provider == "azure") {
+        stopWorker();
+        translateAzure(request, text, source, target);
+        return;
+    }
+    if (settings.provider == "offline") {
+        translateOffline(request, text, source, target, settings);
+        return;
+    }
+    cancel();
+    emit failed(request, tr("Choose Offline, Azure or Mozhi translation."));
+}
+
+void TranslationService::translateOffline(quint64 request, const QString &text, const QString &source,
+                                          const QString &target, const HoverSettings &settings)
+{
     cancel();
     m_request = request;
     if (settings.provider != "offline" || text.trimmed().isEmpty() || text.size() > 10000
@@ -143,6 +171,13 @@ void TranslationService::readOfflineOutput()
 void TranslationService::translate(quint64 request, const QString &text, const QString &source,
                                    const QString &target, const QString &instance)
 {
+    stopWorker();
+    translateMozhi(request, text, source, target, instance);
+}
+
+void TranslationService::translateMozhi(quint64 request, const QString &text, const QString &source,
+                                        const QString &target, const QString &instance)
+{
     cancel();
     m_request = request;
     if (!SettingsStore::validInstance(instance) || text.trimmed().isEmpty()
@@ -153,6 +188,14 @@ void TranslationService::translate(quint64 request, const QString &text, const Q
     auto *translator = new OnlineTranslator(this);
     m_translator = translator;
     translator->setInstance(QUrl(instance).toString(QUrl::StripTrailingSlash));
+    connect(translator, &OnlineTranslator::requestSubmitted, this, [this](qint64 characters) {
+        QString error;
+        if (!m_cloud.record(characters, &error)) {
+            const auto request = m_request;
+            cancel();
+            emit failed(request, error);
+        }
+    });
     connect(translator, &OnlineTranslator::finished, this, [this, translator, request] {
         if (m_translator != translator) return;
         m_timeout.stop();
@@ -167,4 +210,61 @@ void TranslationService::translate(quint64 request, const QString &text, const Q
     translator->translate(text, OnlineTranslator::Google,
         target == "en" ? OnlineTranslator::English : OnlineTranslator::ChineseSimplified,
         source == "en" ? OnlineTranslator::English : OnlineTranslator::ChineseSimplified);
+}
+
+void TranslationService::translateAzure(quint64 request, const QString &text, const QString &source,
+                                        const QString &target)
+{
+    cancel(); m_request = request;
+    const auto from = azureLanguage(source), to = azureLanguage(target);
+    if (from.isEmpty() || to.isEmpty()) {
+        emit failed(request, tr("Azure does not support this language combination. Choose English or Simplified Chinese.")); return;
+    }
+    if (text.trimmed().isEmpty() || text.size() > 10000) {
+        emit failed(request, tr("Use non-empty text, up to 10,000 characters.")); return;
+    }
+    if (source == target) { emit translated(request, text); return; }
+    QString error;
+    const auto credentials = m_cloud.credentials(&error);
+    if (!error.isEmpty()) { emit failed(request, error); return; }
+    const auto key = credentials.value("key").toString();
+    if (key.isEmpty()) {
+        emit failed(request, tr("Configure your own Azure credentials in Settings.")); return;
+    }
+    QUrl url("https://api.cognitive.microsofttranslator.com/translate");
+    QUrlQuery query; query.addQueryItem("api-version", "3.0");
+    query.addQueryItem("from", from); query.addQueryItem("to", to); url.setQuery(query);
+    QNetworkRequest http(url);
+    http.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    http.setHeader(QNetworkRequest::ContentTypeHeader, "application/json; charset=utf-8");
+    http.setRawHeader("Ocp-Apim-Subscription-Key", key.toUtf8());
+    const auto region = credentials.value("region").toString();
+    if (!region.isEmpty()) http.setRawHeader("Ocp-Apim-Subscription-Region", region.toUtf8());
+    if (!m_cloud.record(text.toUcs4().size(), &error)) { emit failed(request, error); return; }
+    const auto body = QJsonDocument(QJsonArray{QJsonObject{{"Text", text}}}).toJson(QJsonDocument::Compact);
+    auto *reply = m_network->post(http, body);
+    m_azureReply = reply;
+    const auto serial = m_serial;
+    const auto received = std::make_shared<QByteArray>();
+    connect(reply, &QNetworkReply::readyRead, this, [this, reply, serial, request, received] {
+        if (m_azureReply != reply || m_serial != serial) return;
+        *received += reply->readAll();
+        if (received->size() > 2000000) {
+            cancel(); emit failed(request, tr("Azure returned an invalid response. Retry later."));
+        }
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, serial, request, received, to] {
+        if (m_azureReply != reply || m_serial != serial) return;
+        *received += reply->readAll();
+        const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        QString error, result;
+        if (status && status != 200) error = azureHttpError(status);
+        else if (reply->error() != QNetworkReply::NoError || !status)
+            error = tr("Azure network request failed. Check your connection and retry.");
+        else result = parseAzureResponse(*received, to, &error);
+        cancel();
+        if (!error.isEmpty()) emit failed(request, error);
+        else emit translated(request, result);
+    });
+    m_timeout.start(m_timeoutMs);
 }

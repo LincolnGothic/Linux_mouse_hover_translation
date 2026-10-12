@@ -53,8 +53,8 @@ bool SettingsStore::validate(const HoverSettings &settings, QString *error)
     QString message;
     if (settings.target != "en" && settings.target != "zh-CN")
         message = QStringLiteral("Choose English or Simplified Chinese.");
-    else if (settings.provider != "offline" && settings.provider != "mozhi")
-        message = QStringLiteral("Choose offline translation or Mozhi.");
+    else if (settings.provider != "offline" && settings.provider != "mozhi" && settings.provider != "azure")
+        message = QStringLiteral("Choose Offline, Azure or Mozhi translation.");
     else if (settings.provider == "mozhi" && !validInstance(settings.instance))
         message = QStringLiteral("Enter an HTTPS Mozhi server URL without credentials, a query, or a fragment. HTTP is allowed only on localhost.");
     else if (settings.textMode != "word" && settings.textMode != "line" && settings.textMode != "sentence")
@@ -85,7 +85,7 @@ HoverSettings SettingsStore::load() const
     // Corrupt or hand-edited files must not enable capture with invalid settings.
     if (!validate(settings)) {
         settings.enabled = false;
-        if (settings.provider != "offline" && settings.provider != "mozhi") settings.provider = "offline";
+        if (settings.provider != "offline" && settings.provider != "mozhi" && settings.provider != "azure") settings.provider = "offline";
         if (settings.target != "en" && settings.target != "zh-CN")
             settings.target = "zh-CN";
         if (!validInstance(settings.instance))

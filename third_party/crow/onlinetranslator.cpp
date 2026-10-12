@@ -1309,6 +1309,7 @@ void OnlineTranslator::requestTranslate()
     // Disable HTTP/2 to prevent connection errors with some servers
     request.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
     m_currentReply = m_networkManager->get(request);
+    emit requestSubmitted(sourceText.toUcs4().size());
 }
 
 void OnlineTranslator::parseTranslate()

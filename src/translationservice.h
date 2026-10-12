@@ -7,11 +7,15 @@
 #include <QProcess>
 #include "settings.h"
 #include "onlinetranslator.h"
+#include "cloudtranslation.h"
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 class TranslationService : public QObject {
     Q_OBJECT
 public:
-    explicit TranslationService(QObject *parent = nullptr);
+    explicit TranslationService(QObject *parent = nullptr, QNetworkAccessManager *network = nullptr,
+                                CloudStore cloud = CloudStore());
     ~TranslationService() override;
     void translate(quint64 request, const QString &text, const QString &source,
                    const QString &target, const HoverSettings &settings);
@@ -25,6 +29,15 @@ signals:
     void translated(quint64 request, const QString &text);
     void failed(quint64 request, const QString &error);
 private:
+    void translateOffline(quint64 request, const QString &text, const QString &source,
+                          const QString &target, const HoverSettings &settings);
+    void translateAzure(quint64 request, const QString &text, const QString &source,
+                        const QString &target);
+    void translateMozhi(quint64 request, const QString &text, const QString &source,
+                        const QString &target, const QString &instance);
+    QNetworkAccessManager *m_network;
+    QPointer<QNetworkReply> m_azureReply;
+    CloudStore m_cloud;
     void readOfflineOutput();
     void sendOfflineRequest();
     void stopWorker();

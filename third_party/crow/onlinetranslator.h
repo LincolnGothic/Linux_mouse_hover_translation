@@ -609,6 +609,7 @@ public:
     static bool isSupportsAutodetection(Engine engine);
 
 signals:
+    void requestSubmitted(qint64 characters);
     /**
      * @brief Translation finished
      *
