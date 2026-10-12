@@ -73,6 +73,7 @@ private slots:
     void requestAndUsage();
     void cancellationTimeoutAndStaleReply();
     void usageRollover();
+    void providerCacheSeparation();
 };
 
 void AzureTest::settingsMigrationAndSecrets()
@@ -222,6 +223,23 @@ void AzureTest::usageRollover()
     QCOMPARE(store.usage(QDate(2026, 11, 1)).value("requests").toInt(), 0);
     QVERIFY(store.record(5, nullptr, QDate(2026, 11, 1)));
     QCOMPARE(store.usage(QDate(2026, 11, 1)).value("characters").toInt(), 5);
+}
+
+void AzureTest::providerCacheSeparation()
+{
+    HoverSettings settings;
+    const auto offline = translationCacheKey(settings, "Hello", "en");
+    settings.provider = "azure";
+    const auto azure = translationCacheKey(settings, "Hello", "en");
+    QVERIFY(azure != offline);
+    settings.provider = "mozhi";
+    const auto mozhi = translationCacheKey(settings, "Hello", "en");
+    QVERIFY(mozhi != azure); QVERIFY(mozhi != offline);
+    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    QVERIFY(store.saveCredentials("fixture-secret", "westus"));
+    settings.provider = "azure";
+    QCOMPARE(translationCacheKey(settings, "Hello", "en"), azure);
+    QVERIFY(!azure.contains("fixture-secret"));
 }
 
 QTEST_GUILESS_MAIN(AzureTest)

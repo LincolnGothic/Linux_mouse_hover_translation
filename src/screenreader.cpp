@@ -146,6 +146,8 @@ void ScreenReader::configure(const HoverSettings &settings)
     m_result->clear(); m_settings = settings;
     m_status->setText(settings.provider == "offline"
         ? tr("Offline: text stays on this computer. Translation models must be installed once.")
+        : settings.provider == "azure"
+        ? tr("Azure: source text is sent to Microsoft Azure Translator. Screenshots stay on this computer.")
         : tr("Online: text will be sent to your selected Mozhi server."));
 }
 
@@ -179,7 +181,10 @@ void ScreenReader::translateText()
     if (source.isEmpty()) { m_status->setText(tr("Enter English or Chinese text.")); return; }
     ++m_generation;
     if (source == m_settings.target) { m_result->setPlainText(text); m_status->setText(tr("Already in the selected target language.")); return; }
-    m_status->setText(tr("Translating… The first offline request loads the model."));
+    m_status->setText(m_settings.provider == "offline"
+        ? tr("Translating… The first offline request loads the model.")
+        : m_settings.provider == "azure" ? tr("Translating with Microsoft Azure Translator…")
+        : tr("Translating with Mozhi…"));
     m_translator.translate(m_generation, text, source, m_settings.target, m_settings);
 }
 

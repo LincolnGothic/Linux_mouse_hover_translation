@@ -30,6 +30,14 @@ QString offlinePython(const HoverSettings &settings)
     return QFileInfo::exists(managed) ? managed : QStringLiteral("python3");
 }
 
+QString translationCacheKey(const HoverSettings &settings, const QString &text, const QString &source)
+{
+    return settings.provider + QChar(0) + settings.instance + QChar(0)
+        + settings.pythonPath + QChar(0) + settings.packagesPath + QChar(0)
+        + settings.dictionaryPath + QString::number(settings.useDictionary) + QChar(0)
+        + source + QChar(0) + settings.target + QChar(0) + text;
+}
+
 SettingsStore::SettingsStore(QString fileName)
     : m_fileName(fileName.isEmpty()
           ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini"
