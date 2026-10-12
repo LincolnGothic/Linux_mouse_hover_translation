@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "settingsdialog.h"
 #include "hovercontroller.h"
+#include "cloudtranslation.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFile>
 #include <QFormLayout>
 #include <QLabel>
+#include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
@@ -113,11 +115,30 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     m_provider = combo("providerComboBox");
     m_provider->addItem(tr("Offline — Argos / dictionary"), "offline");
     m_provider->addItem(tr("Online — Mozhi"), "mozhi");
+    m_provider->addItem(tr("Online — Microsoft Azure Translator"), "azure");
     translationForm->addRow(tr("Translation engine"), m_provider);
     m_server = new QLineEdit(this);
     m_server->setObjectName("serverLineEdit");
     m_server->setPlaceholderText("https://mozhi.aryak.me");
     translationForm->addRow(tr("Mozhi server"), m_server);
+    auto *azureCredentials = new QPushButton(tr("Configure Azure credentials…"), this);
+    azureCredentials->setObjectName("azureCredentialsButton");
+    translationLayout->addWidget(azureCredentials, 0, Qt::AlignLeft);
+    m_azureStatus = paragraph(QString(), translationLayout);
+    m_azureStatus->setObjectName("azureStatusLabel");
+    m_azureStatus->setTextFormat(Qt::PlainText);
+    connect(azureCredentials, &QPushButton::clicked, this, [this] {
+        bool accepted;
+        const auto region = QInputDialog::getText(this, tr("Azure credentials"),
+            tr("Resource region (blank for global resources):"), QLineEdit::Normal, {}, &accepted);
+        if (!accepted) return;
+        const auto key = QInputDialog::getText(this, tr("Azure credentials"),
+            tr("Your Azure resource key:"), QLineEdit::Password, {}, &accepted);
+        if (!accepted) return;
+        QString error;
+        if (!CloudStore().saveCredentials(key, region.trimmed(), &error)) showProblem(error);
+        updateCloudStatus();
+    });
     m_useDictionary = new QCheckBox(tr("Show dictionary definitions"), this);
     translationLayout->addWidget(m_useDictionary);
     m_privacy = paragraph(QString(), translationLayout);
@@ -128,15 +149,6 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     test->setObjectName("testTranslationButton");
     translationLayout->addWidget(test, 0, Qt::AlignLeft);
     translationLayout->addStretch();
-    auto updateProvider = [this] {
-        const bool local = m_provider->currentData().toString() == "offline";
-        m_server->setEnabled(!local);
-        for (auto *edit : {m_python, m_packages, m_dictionary}) edit->setEnabled(local);
-        m_useDictionary->setEnabled(local);
-        m_privacy->setText(local
-            ? tr("Offline mode keeps OCR and translation on this computer. Download the free models once; no API key is needed. CC-CEDICT supplies Chinese word definitions and limited English reverse lookup.")
-            : tr("Online mode sends recognized text to your chosen Mozhi server. Screenshots stay on this computer. Public servers may be unavailable."));
-    };
 
     paragraph(tr("Optional paths"), advancedLayout)->setStyleSheet("font-weight: 600;");
     paragraph(tr("Leave these empty to use the installed OCR languages and downloaded offline resources."), advancedLayout);
@@ -155,6 +167,27 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     m_dictionary->setPlaceholderText(tr("Use downloaded CC-CEDICT"));
     advancedForm->addRow(tr("CC-CEDICT file"), m_dictionary);
     advancedLayout->addStretch();
+    auto updateProvider = [this, translationForm, advancedForm, setup, azureCredentials] {
+        const bool local = m_provider->currentData().toString() == "offline";
+        const bool mozhi = m_provider->currentData().toString() == "mozhi";
+        const bool azure = m_provider->currentData().toString() == "azure";
+        m_server->setEnabled(mozhi);
+        translationForm->setRowVisible(m_server, mozhi);
+        for (auto *edit : {m_python, m_packages, m_dictionary}) {
+            edit->setEnabled(local);
+            advancedForm->setRowVisible(edit, local);
+        }
+        m_useDictionary->setEnabled(local);
+        m_useDictionary->setVisible(local);
+        setup->setVisible(local);
+        azureCredentials->setVisible(azure);
+        m_azureStatus->setVisible(!local);
+        if (!local) updateCloudStatus();
+        m_privacy->setText(local
+            ? tr("Offline mode keeps OCR and translation on this computer. Download the free models once; no API key is needed. CC-CEDICT supplies Chinese word definitions and limited English reverse lookup.")
+            : azure ? tr("Azure sends recognized/source text to Microsoft Azure Translator. Screenshots stay on this computer. Your own credentials are required; no shared key is bundled. Microsoft quotas and pricing apply.")
+            : tr("Online mode sends recognized text to your chosen Mozhi server. Screenshots stay on this computer. Public servers may be unavailable."));
+    };
     connect(m_provider, &QComboBox::currentIndexChanged, this, updateProvider);
     updateProvider();
 
@@ -228,7 +261,7 @@ void SettingsDialog::setSettings(const HoverSettings &settings)
     m_highlight->setChecked(settings.highlightSource);
     m_temporary->setChecked(settings.temporaryModes);
     m_target->setCurrentIndex(settings.target == "en" ? 1 : 0);
-    m_provider->setCurrentIndex(settings.provider == "mozhi" ? 1 : 0);
+    m_provider->setCurrentIndex(m_provider->findData(settings.provider));
     m_textMode->setCurrentIndex(m_textMode->findData(settings.textMode));
     m_server->setText(settings.instance);
     m_dwell->setValue(settings.dwellMs);
@@ -257,7 +290,20 @@ HoverSettings SettingsDialog::settings() const
     settings.useDictionary = m_useDictionary->isChecked();
     return settings;
 }
-void SettingsDialog::setStatus(const QString &status) { m_status->setText(status); }
+void SettingsDialog::updateCloudStatus()
+{
+    QString error;
+    const bool azure = m_provider->currentData().toString() == "azure";
+    const auto credentials = azure ? CloudStore().credentials(&error) : QJsonObject();
+    m_azureStatus->setText((error.isEmpty()
+        ? !azure ? tr("Mozhi cloud usage")
+            : credentials.value("key").toString().isEmpty() ? tr("Credentials not configured") : tr("Credentials configured")
+        : error) + '\n' + CloudStore().usageLabel());
+}
+void SettingsDialog::setStatus(const QString &status) {
+    m_status->setText(status);
+    if (m_provider->currentData().toString() != "offline") updateCloudStatus();
+}
 void SettingsDialog::showProblem(const QString &problem) { QMessageBox::warning(this, tr("Hover Translate"), problem); }
 void SettingsDialog::setHoverAvailability(const QString &problem, bool enabled)
 {

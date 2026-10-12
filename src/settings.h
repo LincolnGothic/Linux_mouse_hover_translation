@@ -23,6 +23,7 @@ struct HoverSettings {
 QString offlineDataDirectory();
 QString offlineAsset(const QString &name);
 QString offlinePython(const HoverSettings &settings);
+QString translationCacheKey(const HoverSettings &settings, const QString &text, const QString &source);
 
 class SettingsStore {
 public:

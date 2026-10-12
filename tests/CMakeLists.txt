@@ -4,6 +4,11 @@ add_executable(test_core test_core.cpp mockserver.h)
 target_link_libraries(test_core PRIVATE hover_core Qt6::Test)
 add_test(NAME core COMMAND test_core)
 
+add_executable(test_azure test_azure.cpp)
+target_link_libraries(test_azure PRIVATE hover_core Qt6::Test)
+add_test(NAME azure_provider COMMAND test_azure)
+set_tests_properties(azure_provider PROPERTIES TIMEOUT 30)
+
 add_executable(test_settings test_settings.cpp ../src/settingsdialog.cpp ../src/settingsdialog.h)
 target_link_libraries(test_settings PRIVATE hover_core Qt6::Test)
 add_test(NAME settings_ui COMMAND test_settings)

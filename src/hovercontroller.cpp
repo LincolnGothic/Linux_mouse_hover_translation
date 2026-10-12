@@ -124,7 +124,7 @@ bool HoverController::configure(const HoverSettings &settings, QString *error)
     m_policy.setDwellMs(settings.dwellMs);
     m_cache.clear();
     m_settings = settings;
-    m_dictionary.load(settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
+    m_dictionary.load(settings.provider == "offline" && settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
     QString problem;
     const bool valid = SettingsStore::validate(settings, &problem);
     const bool wayland = qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
@@ -236,10 +236,7 @@ void HoverController::capture()
 
 QString HoverController::cacheKey(const QString &text, const QString &source) const
 {
-    return m_settings.provider + QChar(0) + m_settings.instance + QChar(0)
-        + m_settings.pythonPath + QChar(0) + m_settings.packagesPath + QChar(0)
-        + m_settings.dictionaryPath + QString::number(m_settings.useDictionary) + QChar(0)
-        + source + QChar(0) + m_settings.target + QChar(0) + text;
+    return translationCacheKey(m_settings, text, source);
 }
 
 void HoverController::showResult(const QString &text, bool error)

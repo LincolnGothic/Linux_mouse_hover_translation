@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
         {{"c", "config"}, "Use a specific settings file.", "file"},
         {"ocr", "Recognize an image locally and print line geometry as JSON.", "file"},
         {"translate", "Translate text locally by default.", "text"},
-        {"provider", "Translation provider: offline (default) or mozhi.", "provider"},
+        {"provider", "Translation provider: offline (default), azure or mozhi.", "provider"},
         {"python", "Offline Python executable (normally detected automatically).", "file"},
         {"models-dir", "Folder containing installed Argos packages.", "directory"},
         {"dictionary", "CC-CEDICT text file for word definitions.", "file"},

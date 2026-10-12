@@ -22,6 +22,7 @@ add_library(hover_core STATIC
     src/sourcehighlight.cpp src/sourcehighlight.h
     src/worddictionary.cpp src/worddictionary.h
     src/settings.cpp src/settings.h
+    src/cloudtranslation.cpp src/cloudtranslation.h
     src/hoverpolicy.cpp src/hoverpolicy.h
     src/translationservice.cpp src/translationservice.h
     src/x11escape.cpp src/x11escape.h

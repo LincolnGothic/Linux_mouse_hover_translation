@@ -1,5 +1,25 @@
 # Hover Translate
 
+## Azure 翻译（可选）
+
+原有用户保留 Offline/Mozhi 设置，默认仍为 Offline；离线翻译留在本机。
+选择 **Translation → Microsoft Azure Translator**，点击 **Configure Azure
+credentials**，在本机输入自己的 Azure 资源区域和密钥（密钥输入会隐藏），
+然后点击 Apply/Test translation。Azure 只向微软发送识别出的文字或输入的
+源文字，**不会发送截图**；OCR、截图和 CC-CEDICT 留在本机，词典只用于 Offline。
+不捆绑开发者共享密钥，不会自动切换到其他在线服务。使用受微软当前
+[配额](https://learn.microsoft.com/en-us/azure/ai-services/translator/service-limits)和
+[价格](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/translator/)约束，
+不承诺永久免费。
+
+凭据单独保存到 `~/.config/hover-translate/cloud/azure-credentials.json`（遵循
+XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及符号链接。
+密钥不进入普通 INI、状态或缓存标识。该本地文件未加密，请保护账号、磁盘和备份。
+设置页显示本月请求次数和提交的源字符数；使用计数仅保存月份和数字，失败请求计入，
+缓存命中/离线翻译不计入，自然按月归零，不保存文字且不发送遥测。
+使用 Qt Network 直接调用 REST v3，无 Azure SDK；仅支持全球 HTTPS 端点及资源密钥，
+暂不支持自定义/VNet 端点和 Entra ID。详细配置及隐私说明见英文 README。
+
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.4.2** 将设置分为三个页签，修复小窗口中的横向溢出与按钮被滚动隐藏的问题。通过随附的

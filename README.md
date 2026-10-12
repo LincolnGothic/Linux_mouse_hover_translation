@@ -5,7 +5,8 @@
 Open-source **English ↔ Simplified Chinese** translation where you point.
 Version **0.4.2** provides a tabbed settings window that fits smaller screens, with fixed actions and working vertical scrolling.
 Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
-translation and optional CC-CEDICT word definitions require no API key.
+translation and optional CC-CEDICT word definitions require no API key in Offline mode.
+Azure Translator is opt-in; Mozhi remains available.
 Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
 [upstream provenance](docs/UPSTREAM.md).
 
@@ -54,7 +55,7 @@ The earlier v0.2.0 does not contain Wayland hover support or these fixes.
 ## Settings window
 
 - **Hover:** enable translation, target language, Word/Line/Sentence, delay, highlighting, shortcuts and GNOME setup.
-- **Translation:** offline/online engine, Mozhi server, dictionary toggle, model installation and test translation.
+- **Translation:** Offline/Azure/Mozhi provider, provider-specific fields, usage and test translation. Argos/dictionary controls appear only for Offline; server fields only for Mozhi.
 - **Advanced:** optional OCR, Python, translation-model and dictionary paths.
 
 **Screen region**, **Translate text**, status, **About**, **Apply** and **Close** stay
@@ -125,6 +126,42 @@ permission dialogs remain separate from the automatic extension's validated
 capture path. GNOME manual capture needs `xdg-desktop-portal-gnome`.
 
 ## Dictionary and privacy
+
+### Azure Translator (opt-in)
+
+Existing users keep their saved Offline or Mozhi provider; missing settings default
+to Offline. To use Azure, create your own Microsoft Azure Translator resource,
+then select **Translation → Online — Microsoft Azure Translator**. Click
+**Configure Azure credentials**, enter its resource region and use the masked
+local key prompt. Click **Apply**, then **Test translation**. Never place the key
+in chat or normal INI settings. Selecting Offline returns to local Argos/CC-CEDICT.
+
+Azure sends **recognized/source text** to **Microsoft Azure Translator** via the
+[REST v3 API](https://learn.microsoft.com/en-us/azure/ai-services/translator/text-translation/reference/v3/translate),
+using Qt Network, without the Azure SDK. **Screenshots are never sent to Azure**;
+OCR/capture stay local. Offline keeps translation local. Azure requires your own
+credentials; **no developer-owned shared API key is bundled**. Usage is subject to
+Microsoft's [current quotas](https://learn.microsoft.com/en-us/azure/ai-services/translator/service-limits)
+and [pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/translator/).
+Azure is **not guaranteed permanently free**, and never silently falls back.
+
+Credentials live in `~/.config/hover-translate/cloud/azure-credentials.json`
+(following `XDG_CONFIG_HOME`), outside the INI file. Directory/file modes are
+owner-only `700`/`600`; owner, permission and link checks fail closed. A private
+file avoids new keyring/runtime dependencies across GNOME/X11/headless systems.
+It is **unencrypted at rest**: protect the account, disk and backups. No credential
+key enters settings/status/cache identities. Only the global HTTPS endpoint and
+resource-key authentication are supported; custom/VNet endpoints and Entra ID
+are outside this implementation.
+
+Settings/status show `This month: 127 requests · 143,820 characters`. Local
+`cloud/cloud-usage.json` stores only month, submitted cloud request count and
+source Unicode character count for Azure and Mozhi. Failed submissions count;
+cache hits, dictionary and Argos do not. Counters roll over with the local month,
+are estimates rather than billing records, contain no text/credentials, and send
+no telemetry. Errors identify credentials, quota/rate limits, timeout/network,
+unsupported languages or invalid/empty responses without exposing headers or
+server error bodies. Provider routing preserves cancellation and request IDs.
 
 CC-CEDICT primarily supplies Chinese → English definitions, with limited exact
 English-definition reverse lookup. English lookup also tries common inflections

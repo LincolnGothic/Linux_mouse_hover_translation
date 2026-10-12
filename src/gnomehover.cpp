@@ -52,7 +52,7 @@ GnomeHover::GnomeHover(QObject *parent) : QObject(parent),
             }
             const auto source = HoverPolicy::sourceLanguage(m_source);
             if (!m_source.isEmpty() && !source.isEmpty() && source != m_settings.target) {
-                m_key = source + QChar(0) + m_settings.target + QChar(0) + m_source;
+                m_key = translationCacheKey(m_settings, m_source, source);
                 if (const auto *cached = m_cache.object(m_key)) result(m_source, *cached);
                 else {
                     emit statusChanged(tr("Translating selected text…"));
@@ -94,7 +94,7 @@ bool GnomeHover::available()
 bool GnomeHover::configure(const HoverSettings &settings, QString *error)
 {
     ++m_configuration; cancel(); m_cache.clear(); m_settings = settings;
-    m_dictionary.load(settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
+    m_dictionary.load(settings.provider == "offline" && settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
     QString failure;
     if (settings.enabled && !available()) failure = tr("Install and enable the Hover Translate GNOME extension, then reopen the app.");
     else if (settings.enabled && !m_ocr.init("eng+chi_sim", settings.tessdataPath.toUtf8()))

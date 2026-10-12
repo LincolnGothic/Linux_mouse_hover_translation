@@ -19,6 +19,7 @@ private slots:
     void smallWindow_data();
     void smallWindow();
     void retainedSettingsAndActions();
+    void providerSpecificFields();
 };
 
 void SettingsTest::smallWindow_data()
@@ -147,6 +148,26 @@ void SettingsTest::retainedSettingsAndActions()
     QCOMPARE(test.count(), 1);
     QTest::mouseClick(dialog.findChild<QPushButton *>("closeButton"), Qt::LeftButton);
     QVERIFY(!dialog.isVisible());
+}
+
+void SettingsTest::providerSpecificFields()
+{
+    SettingsDialog dialog; dialog.setSettings(HoverSettings{});
+    auto *provider = dialog.findChild<QComboBox *>("providerComboBox");
+    auto *server = dialog.findChild<QLineEdit *>("serverLineEdit");
+    auto *credentials = dialog.findChild<QPushButton *>("azureCredentialsButton");
+    auto *dictionary = dialog.findChild<QLineEdit *>("dictionaryLineEdit");
+    auto *setup = dialog.findChild<QPushButton *>("offlineSetupButton");
+    QVERIFY(credentials);
+    QVERIFY(server->isHidden()); QVERIFY(credentials->isHidden());
+    QVERIFY(!dictionary->isHidden()); QVERIFY(!setup->isHidden());
+    provider->setCurrentIndex(provider->findData("azure"));
+    QCOMPARE(dialog.settings().provider, QString("azure"));
+    QVERIFY(server->isHidden()); QVERIFY(!credentials->isHidden());
+    QVERIFY(dictionary->isHidden()); QVERIFY(setup->isHidden());
+    provider->setCurrentIndex(provider->findData("mozhi"));
+    QVERIFY(!server->isHidden()); QVERIFY(credentials->isHidden());
+    QVERIFY(dictionary->isHidden()); QVERIFY(setup->isHidden());
 }
 
 QTEST_MAIN(SettingsTest)

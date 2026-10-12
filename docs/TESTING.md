@@ -16,6 +16,7 @@ node tests/test_gnome_policy.mjs
 | Suite | Evidence |
 | --- | --- |
 | core | Timing, languages, word/sentence selection, wrapped-sentence OCR, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
+| azure_provider | Mock Qt network manager, provider migration, en/zh-Hans mapping, parsing/auth/HTTP/network errors, missing/private credentials, cancellation/timeouts/stale replies and monthly metadata-only usage; no live Azure requests |
 | settings_ui | Small window and large fonts, no horizontal overflow, actual wheel/scrollbar dragging, lower controls reachable, fixed footer, retained paths/modes and Apply/reader/test actions |
 | hover_x11 | Actual X11 capture/OCR/popup, Escape/pause/movement/cache and focus/selection/clipboard preservation |
 | portal_capture | Screenshot D-Bus fixture, actual crop/OCR/dictionary, invalid URI, cancellation/timeout and clipboard preservation |

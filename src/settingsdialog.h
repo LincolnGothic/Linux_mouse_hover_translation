@@ -36,4 +36,6 @@ private:
     QSpinBox *m_dwell;
     QLabel *m_status;
     QLabel *m_privacy;
+    QLabel *m_azureStatus;
+    void updateCloudStatus();
 };
