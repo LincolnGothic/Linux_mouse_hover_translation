@@ -181,8 +181,8 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         m_useDictionary->setVisible(local);
         setup->setVisible(local);
         azureCredentials->setVisible(azure);
-        m_azureStatus->setVisible(azure);
-        if (azure) updateCloudStatus();
+        m_azureStatus->setVisible(!local);
+        if (!local) updateCloudStatus();
         m_privacy->setText(local
             ? tr("Offline mode keeps OCR and translation on this computer. Download the free models once; no API key is needed. CC-CEDICT supplies Chinese word definitions and limited English reverse lookup.")
             : azure ? tr("Azure sends recognized/source text to Microsoft Azure Translator. Screenshots stay on this computer. Your own credentials are required; no shared key is bundled. Microsoft quotas and pricing apply.")
@@ -293,14 +293,16 @@ HoverSettings SettingsDialog::settings() const
 void SettingsDialog::updateCloudStatus()
 {
     QString error;
-    const auto credentials = CloudStore().credentials(&error);
+    const bool azure = m_provider->currentData().toString() == "azure";
+    const auto credentials = azure ? CloudStore().credentials(&error) : QJsonObject();
     m_azureStatus->setText((error.isEmpty()
-        ? credentials.value("key").toString().isEmpty() ? tr("Credentials not configured") : tr("Credentials configured")
+        ? !azure ? tr("Mozhi cloud usage")
+            : credentials.value("key").toString().isEmpty() ? tr("Credentials not configured") : tr("Credentials configured")
         : error) + '\n' + CloudStore().usageLabel());
 }
 void SettingsDialog::setStatus(const QString &status) {
-    m_status->setText(m_provider->currentText() + " — " + status + '\n' + CloudStore().usageLabel());
-    if (m_provider->currentData().toString() == "azure") updateCloudStatus();
+    m_status->setText(status);
+    if (m_provider->currentData().toString() != "offline") updateCloudStatus();
 }
 void SettingsDialog::showProblem(const QString &problem) { QMessageBox::warning(this, tr("Hover Translate"), problem); }
 void SettingsDialog::setHoverAvailability(const QString &problem, bool enabled)
