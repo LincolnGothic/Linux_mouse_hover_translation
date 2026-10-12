@@ -231,7 +231,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.4.2</h2>"
+        browser->setHtml(tr("<h2>Hover Translate 0.5.0</h2>"
             "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"

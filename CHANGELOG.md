@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — optional Microsoft Azure Translator
+
+- Add explicit Offline/Azure/Mozhi provider paths using REST v3 and the existing Qt Network dependency.
+- Preserve saved providers; no automatic cloud fallback. Keep CC-CEDICT Offline-only.
+- Store user-owned Azure credentials separately with owner-only permissions; never expose keys in INI/status/cache identities.
+- Show provider-specific settings, masked local credential entry and metadata-only monthly cloud usage.
+- Preserve asynchronous cancellation, timeouts, request IDs and stale-response protection; separate GNOME/X11 caches by provider.
+- Test mocked Azure responses/errors/privacy/usage and retain all Offline/capture/popup regression suites.
+- Document text-only Azure submission, Microsoft quotas/pricing and private-file limitations; no Azure SDK or shared key.
+
 ## 0.4.2 — settings that fit the window
 
 - Separate Hover, Translation and Advanced tabs; optional resource paths no longer crowd daily controls.
