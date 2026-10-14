@@ -20,7 +20,7 @@ cases = [
     ("Hello world", "zh-CN", [("你好", "哈罗"), ("世界",)]),
     ("你好世界", "en", [("hello",), ("world",)]),
 ]
-environment = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+environment = dict(os.environ, QT_QPA_PLATFORM="windows" if sys.platform == "win32" else "offscreen")
 with tempfile.TemporaryDirectory() as directory:
     for text, target, words in cases:
         result = subprocess.run([args.binary, "--config", directory + "/settings.ini",

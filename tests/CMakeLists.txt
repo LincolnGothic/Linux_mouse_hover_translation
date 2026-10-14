@@ -41,3 +41,8 @@ endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set_tests_properties(core PROPERTIES ENVIRONMENT "HOVER_TEST_PYTHON=${Python3_EXECUTABLE}")
 add_test(NAME offline_setup COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_offline_setup.py)
+
+if(WIN32)
+    add_test(NAME windows_cli COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_windows_cli.py $<TARGET_FILE:hover-translate>)
+    set_tests_properties(windows_cli PROPERTIES TIMEOUT 45)
+endif()

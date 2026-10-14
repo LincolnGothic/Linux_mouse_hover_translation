@@ -71,18 +71,22 @@ int main(int argc, char *argv[])
         {"background", "Start in the tray when a tray is available."}
     });
 #ifdef Q_OS_WIN
-    // Qt's automatic help/version output uses a dialog for GUI-subsystem EXEs.
-    if (app.arguments().contains("--version") || app.arguments().contains("-v")) {
+    // GUI-subsystem EXEs must use redirected stdout/stderr instead of Qt dialogs.
+    if (!parser.parse(app.arguments())) {
+        QTextStream(stderr) << parser.errorText() << '\n';
+        return 2;
+    }
+    if (parser.isSet("version")) {
         QTextStream(stdout) << app.applicationName() << ' ' << app.applicationVersion() << '\n';
         return 0;
     }
-    if (app.arguments().contains("--help") || app.arguments().contains("-h")
-        || app.arguments().contains("--help-all")) {
+    if (parser.isSet("help") || parser.isSet("help-all")) {
         QTextStream(stdout) << parser.helpText();
         return 0;
     }
-#endif
+#else
     parser.process(app);
+#endif
     SettingsStore store(parser.value("config"));
     auto settings = store.load();
     if (parser.isSet("target")) settings.target = parser.value("target");

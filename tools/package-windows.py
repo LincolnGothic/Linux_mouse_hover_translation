@@ -57,7 +57,7 @@ def main():
     environment = dict(os.environ)
     system = Path(os.environ.get('SystemRoot', r'C:\Windows'))
     environment['PATH'] = str(system/'System32') + os.pathsep + str(system)
-    environment['QT_QPA_PLATFORM'] = 'offscreen'
+    environment['QT_QPA_PLATFORM'] = 'windows'
     diagnostic = run([stage/'hover-translate.exe','--version'],capture_output=True,
                      text=True,encoding='utf-8',timeout=15,env=environment,cwd=stage)
     if diagnostic.stdout.strip() != f'HoverTranslate {version}':
