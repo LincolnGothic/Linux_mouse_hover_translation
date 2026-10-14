@@ -14,5 +14,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }
 $env:TESSDATA_PREFIX = Join-Path $prefix 'share\tessdata'
 New-Item -ItemType Directory -Force -Path (Join-Path $build 'tests\tessdata') | Out-Null
 Copy-Item -LiteralPath (Join-Path $env:TESSDATA_PREFIX 'eng.traineddata'),(Join-Path $env:TESSDATA_PREFIX 'chi_sim.traineddata') -Destination (Join-Path $build 'tests\tessdata')
+$fontDirectory = Join-Path $build 'test-assets'
+New-Item -ItemType Directory -Force -Path $fontDirectory | Out-Null
+$env:HOVER_TEST_FONT = Join-Path $fontDirectory 'NotoSansCJKsc-Regular.otf'
+if (!(Test-Path -LiteralPath $env:HOVER_TEST_FONT)) {
+    Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf' -OutFile $env:HOVER_TEST_FONT -UseBasicParsing
+}
 & "$prefix\bin\ctest.exe" --test-dir $build --output-on-failure
 if ($LASTEXITCODE -ne 0) { throw 'Windows tests failed.' }

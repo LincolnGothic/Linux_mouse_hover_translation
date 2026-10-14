@@ -44,3 +44,8 @@ legacy Stanza resources; it does not modify installed Argos libraries/models.
 Upstream's complete GPL text is retained as `LICENSE` and
 `LICENSES/GPL-3.0-or-later.txt`. Qt, Tesseract, Leptonica and XCB remain external
 dependencies. See [NOTICE.md](../NOTICE.md) for their licensing context.
+
+Windows 0.6.0 (2026-10-14) adds a 3x retry after both existing 2x
+OCR passes find no readable lines in `tesseractocr.cpp`. Successful existing
+recognition is preserved and bounds use the current attempt scale. This fixes the reproduced 10-pixel dark-text Windows
+fixture without changing recognized-text or geometry assertions.

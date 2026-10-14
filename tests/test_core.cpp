@@ -13,6 +13,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 #ifdef Q_OS_WIN
+#include <QFontDatabase>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextStream>
@@ -136,10 +137,7 @@ void CoreTest::wrappedSentenceOcr()
 {
     QImage image(650,170,QImage::Format_RGB32); image.fill(Qt::white);
     QPainter painter(&image); QFont font("Noto Sans CJK SC");
-#ifdef Q_OS_WIN
-    font.setFamily("Arial");
-#endif
- font.setPixelSize(24);
+    font.setPixelSize(24);
     painter.setFont(font); painter.setPen(Qt::black);
     painter.drawText(20,50,"This sentence continues");
     painter.drawText(20,85,"on the next line."); painter.end();
@@ -298,10 +296,7 @@ void CoreTest::smallScreenTextOcr()
     QFETCH(int,pixels); QFETCH(bool,dark);
     QImage image(280,35,QImage::Format_RGB32); image.fill(dark ? QColor("#202124") : Qt::white);
     QPainter painter(&image); QFont font("Noto Sans CJK SC");
-#ifdef Q_OS_WIN
-    font.setFamily("Arial");
-#endif
- font.setPixelSize(pixels);
+    font.setPixelSize(pixels);
     painter.setFont(font); painter.setPen(dark ? Qt::white : Qt::black);
     painter.drawText(2,22,"Hello world"); painter.end();
     TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim",{}));
@@ -538,6 +533,8 @@ int main(int argc, char **argv)
         return 0;
     }
     QApplication app(argc, argv);
+    const auto font = qEnvironmentVariable("HOVER_TEST_FONT");
+    if (!font.isEmpty() && QFontDatabase::addApplicationFont(font) < 0) return 2;
     CoreTest test;
     return QTest::qExec(&test, argc, argv);
 }

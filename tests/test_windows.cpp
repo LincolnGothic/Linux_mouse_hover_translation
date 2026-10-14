@@ -8,6 +8,7 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QTemporaryDir>
 #include <QJsonArray>
 #include <QPainter>
@@ -19,7 +20,9 @@
 #include <QSignalSpy>
 #include <QtTest>
 #include <cstdio>
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 
 // A separate process lets the test exercise real desktop capture while the
@@ -29,8 +32,18 @@ public:
     ReadingSurface()
     {
         setWindowTitle("Hover Translate Windows reading fixture");
+        setWindowFlag(Qt::WindowStaysOnTopHint);
+        QFont textFont("Microsoft YaHei"); textFont.setPixelSize(40); setFont(textFont);
         resize(850, 510);
         move(QGuiApplication::primaryScreen()->availableGeometry().topLeft() + QPoint(30, 30));
+    }
+    QPoint englishPoint() const { return inkPoint("Hello", {80, 150}); }
+    QPoint chinesePoint() const { return inkPoint(QString::fromUtf8("你好世界"), {80, 290}); }
+    QPoint sentencePoint() const { return inkPoint("Hello", {80, 410}); }
+private:
+    QPoint inkPoint(const QString &text, QPoint baseline) const
+    {
+        return mapToGlobal(QFontMetrics(font()).tightBoundingRect(text).translated(baseline).center());
     }
 protected:
     void paintEvent(QPaintEvent *) override
@@ -38,11 +51,11 @@ protected:
         QPainter painter(this);
         painter.fillRect(rect(), Qt::white);
         painter.setPen(Qt::black);
-        QFont font("Microsoft YaHei"); font.setPixelSize(40); painter.setFont(font);
-        painter.drawText(QRect(80, 100, 700, 80), Qt::AlignLeft | Qt::AlignVCenter, "Hello world");
-        painter.drawText(QRect(80, 240, 700, 80), Qt::AlignLeft | Qt::AlignVCenter, QString::fromUtf8("你好世界"));
-        painter.drawText(QRect(80, 360, 700, 65), Qt::AlignLeft | Qt::AlignVCenter, "Hello world.");
-        painter.drawText(QRect(80, 415, 700, 65), Qt::AlignLeft | Qt::AlignVCenter, "This is a second line.");
+        painter.setFont(font());
+        painter.drawText(QPoint(80, 150), "Hello world");
+        painter.drawText(QPoint(80, 290), QString::fromUtf8("你好世界"));
+        painter.drawText(QPoint(80, 410), "Hello world.");
+        painter.drawText(QPoint(80, 465), "This is a second line.");
     }
 };
 
@@ -71,11 +84,11 @@ private:
 
 void WindowsTest::initTestCase()
 {
-    QVERIFY2(HoverController::platformProblem().isEmpty(), qPrintable(HoverController::platformProblem()));
     m_originalPointer = QCursor::pos();
     m_clipboard = std::make_unique<QMimeData>();
     const auto *clipboard = QApplication::clipboard()->mimeData();
     for (const auto &format : clipboard->formats()) m_clipboard->setData(format, clipboard->data(format));
+    QVERIFY2(HoverController::platformProblem().isEmpty(), qPrintable(HoverController::platformProblem()));
     m_fixture.start(QCoreApplication::applicationFilePath(), {"--reading-fixture"});
     QVERIFY(m_fixture.waitForStarted());
     QVERIFY(m_fixture.waitForReadyRead(5000));
@@ -130,6 +143,15 @@ void WindowsTest::nativeCaptureAndHover()
     auto configuration = settings(server); configuration.textMode = mode; configuration.target = target;
     QString diagnostic, problem;
     connect(&hover, &HoverController::statusChanged, this, [&](const QString &message) { diagnostic += message + '\n'; });
+    connect(&ocr, &TesseractOcr::linesRecognized, this, [&](const QVector<OcrLine> &lines) {
+        for (const auto &line : lines) {
+            diagnostic += QString("OCR %1 bounds %2,%3 %4x%5 confidence %6\n")
+                .arg(line.text).arg(line.bounds.x()).arg(line.bounds.y()).arg(line.bounds.width()).arg(line.bounds.height()).arg(line.confidence);
+            for (const auto &word : line.words)
+                diagnostic += QString("Word %1 bounds %2,%3 %4x%5\n")
+                    .arg(word.text).arg(word.bounds.x()).arg(word.bounds.y()).arg(word.bounds.width()).arg(word.bounds.height());
+        }
+    });
     QVERIFY2(hover.configure(configuration, &problem), qPrintable(problem));
     QSignalSpy popup(&hover, &HoverController::popupShown);
     QApplication::clipboard()->setText("clipboard sentinel");
@@ -148,7 +170,7 @@ void WindowsTest::nativeCaptureAndHover()
     SourceHighlight *highlight = nullptr;
     for (auto *widget : QApplication::topLevelWidgets())
         if (auto *candidate = dynamic_cast<SourceHighlight *>(widget); candidate && candidate->isVisible()) highlight = candidate;
-    QVERIFY(highlight);
+    QVERIFY2(highlight, qPrintable(diagnostic));
     QVERIFY2(highlight->frameGeometry().contains(point), qPrintable(QString("Highlight %1,%2 %3x%4 misses pointer %5,%6")
         .arg(highlight->x()).arg(highlight->y()).arg(highlight->width()).arg(highlight->height()).arg(point.x()).arg(point.y())));
     QVERIFY(QGuiApplication::screenAt(point)->availableGeometry().contains(hover.popup()->frameGeometry()));
@@ -179,7 +201,7 @@ void WindowsTest::ignoresOwnWindows()
     own.activateWindow(); QTest::qWait(150);
     MockServer server; TesseractOcr ocr; TranslationService translator; HoverController hover(&ocr, &translator);
     QVERIFY(hover.configure(settings(server)));
-    QCursor::setPos(own.mapToGlobal(QPoint(140, 140))); QTest::qWait(800);
+    QCursor::setPos(own.englishPoint()); QTest::qWait(800);
     QCOMPARE(server.requests.size(), 0); QVERIFY(!hover.popup()->isVisible());
 }
 
@@ -214,15 +236,20 @@ void WindowsTest::manualCapture()
     capture.capture(); QTRY_COMPARE(result.count(), 1);
     const auto image = qvariant_cast<QImage>(result.first().first()); QVERIFY(!image.isNull());
     TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim", qEnvironmentVariable("TESSDATA_PREFIX").toUtf8()));
-    QSignalSpy text(&ocr, &TesseractOcr::recognized); ocr.recognize(image, 96);
-    QVERIFY(text.wait(10000)); QVERIFY(text.first().first().toString().contains("Hello world"));
+    QSignalSpy failure(&ocr, &TesseractOcr::failed);
+    const auto screen = QGuiApplication::primaryScreen()->geometry();
+    const qreal scaleX = qreal(image.width()) / screen.width(), scaleY = qreal(image.height()) / screen.height();
+    const auto origin = m_english - QPoint(75, 35) - screen.topLeft();
+    const auto controlled = image.copy(QRectF(origin.x() * scaleX, origin.y() * scaleY, 330 * scaleX, 75 * scaleY).toAlignedRect());
+    QSignalSpy text(&ocr, &TesseractOcr::recognized); ocr.recognize(controlled, 96);
+    QVERIFY2(text.wait(10000), qPrintable(failure.isEmpty() ? QString("OCR still busy: %1").arg(ocr.isBusy()) : failure.first().first().toString())); QVERIFY(text.first().first().toString().contains("Hello world"));
     QSignalSpy canceled(&capture, &PortalCapture::captured);
     capture.capture(); capture.cancel(); QTest::qWait(100); QCOMPARE(canceled.count(), 0);
 }
 
 void WindowsTest::typedAndRegionTranslation()
 {
-    MockServer server; ScreenReader reader; reader.configure(settings(server)); reader.show();
+    MockServer server; ScreenReader reader; reader.setWindowFlag(Qt::WindowStaysOnTopHint); reader.configure(settings(server)); reader.show();
     QVERIFY(QTest::qWaitForWindowExposed(&reader));
     auto *source = reader.findChild<QPlainTextEdit *>("sourceText");
     auto *result = reader.findChild<QPlainTextEdit *>("resultText");
@@ -250,6 +277,7 @@ void WindowsTest::typedAndRegionTranslation()
         QTest::mouseRelease(dialog, Qt::LeftButton, Qt::NoModifier, bottomRight.toPoint());
         selected = true;
     });
+    source->clear(); QVERIFY(result->toPlainText().isEmpty());
     selection.start();
     reader.capture();
     // The fixture must be in the foreground when the delayed desktop grab runs.
@@ -284,9 +312,9 @@ int main(int argc, char **argv)
     if (application.arguments().contains("--reading-fixture")) {
         ReadingSurface surface; surface.show(); surface.activateWindow();
         QTimer::singleShot(400, &surface, [&] {
-            const auto coordinates = [&surface](QPoint local) { const auto point = surface.mapToGlobal(local); return QJsonArray{point.x(), point.y()}; };
-            const auto ready = QJsonDocument(QJsonObject{{"english", coordinates({140, 140})},
-                {"chinese", coordinates({140, 280})}, {"sentence", coordinates({140, 392})},
+            const auto coordinates = [](QPoint point) { return QJsonArray{point.x(), point.y()}; };
+            const auto ready = QJsonDocument(QJsonObject{{"english", coordinates(surface.englishPoint())},
+                {"chinese", coordinates(surface.chinesePoint())}, {"sentence", coordinates(surface.sentencePoint())},
                 {"window", QString::number(quintptr(surface.winId()))}}).toJson(QJsonDocument::Compact) + '\n';
             std::fwrite(ready.constData(), 1, ready.size(), stdout); std::fflush(stdout);
         });

@@ -53,6 +53,15 @@ def main():
         shutil.copy2(args.prefix/'share/tessdata'/name,tessdata/name)
     licenses=args.prefix/'share/licenses'
     if licenses.is_dir(): shutil.copytree(licenses,stage/'third-party-licenses')
+    # A package must work without the compiler/Qt SDK on PATH.
+    environment = dict(os.environ)
+    system = Path(os.environ.get('SystemRoot', r'C:\Windows'))
+    environment['PATH'] = str(system/'System32') + os.pathsep + str(system)
+    environment['QT_QPA_PLATFORM'] = 'offscreen'
+    diagnostic = run([stage/'hover-translate.exe','--version'],capture_output=True,
+                     text=True,encoding='utf-8',timeout=15,env=environment,cwd=stage)
+    if diagnostic.stdout.strip() != f'HoverTranslate {version}':
+        raise RuntimeError('The packaged executable did not report its expected version.')
     archive=args.output/f'hover-translate-{version}-windows-x64.zip'
     if archive.exists(): raise FileExistsError(f'Refusing to overwrite {archive}')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as zipped:

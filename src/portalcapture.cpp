@@ -24,7 +24,8 @@ void PortalCapture::capture()
         if (desktop) CloseDesktop(desktop);
         if (!unlocked) { emit failed(tr("Screen capture is unavailable while this Windows session is locked.")); return; }
         auto *screen = QGuiApplication::primaryScreen();
-        const QImage image = screen ? screen->grabWindow(0).toImage() : QImage();
+        QImage image = screen ? screen->grabWindow(0).toImage() : QImage();
+        image.setDevicePixelRatio(1.0);
         if (image.isNull()) emit failed(tr("Could not capture the primary screen."));
         else emit captured(image);
     });

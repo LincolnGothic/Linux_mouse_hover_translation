@@ -36,6 +36,12 @@ the Windows ZIP. Linux CI retains CTest, GNOME policy, Wayland and live GNOME
 model checks. Azure tests use a local mock and no real Azure key. Matching complete
 GPL source, third-party notices and checksums accompany the binary artifacts.
 
+Local Windows verification uses Windows 11, one 2560×1440 monitor at 125% scaling.
+The native fixture verifies English/Chinese line selection, English word/sentence
+selection, highlighting, cancellation, own-window exclusion, popup actions,
+Escape, typed translation and dragged-region capture. Secure-desktop behavior
+is guarded in code; actual session locking and additional monitors are unverified.
+
 This is a preview: OCR/model quality varies; secure/protected/elevated windows
 are outside guaranteed support. Multi-monitor/fractional-scale configurations
 beyond the recorded validation need user-desktop testing. Manual Windows region

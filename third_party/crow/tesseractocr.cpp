@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Modified 2026-10-05: see the header and docs/UPSTREAM.md.
+ * Modified 2026-10-14: enlarge tiny Windows text to preserve OCR readability.
  */
 #include "tesseractocr.h"
 #include <QtConcurrent>
@@ -92,21 +93,30 @@ void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraph
         samples += 2;
     }
     if (samples && brightness / samples < 128) image.invertPixels();
-    if (scale > 1) image = image.scaled(image.size() * scale, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    QImage padded(image.size() + QSize(border * 2, border * 2), QImage::Format_RGB888);
-    padded.fill(Qt::white);
-    { QPainter painter(&padded); painter.drawImage(border, border, image); }
-    image = padded;
+
     m_canceled.store(false);
     m_busy = true;
     emit started();
     m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size(), paragraphLayout] {
         OcrResult result;
-        for (const auto mode : {paragraphLayout ? tesseract::PSM_AUTO : tesseract::PSM_SPARSE_TEXT,
-                                paragraphLayout ? tesseract::PSM_SPARSE_TEXT : tesseract::PSM_AUTO}) {
-            m_tesseract.SetPageSegMode(mode);
-            m_tesseract.SetImage(image.constBits(), image.width(), image.height(), 3, image.bytesPerLine());
-            m_tesseract.SetSourceResolution(qMax(70, dpi * scale));
+        const tesseract::PageSegMode modes[] = {
+            paragraphLayout ? tesseract::PSM_AUTO : tesseract::PSM_SPARSE_TEXT,
+            paragraphLayout ? tesseract::PSM_SPARSE_TEXT : tesseract::PSM_AUTO};
+        QImage input;
+        // Retry tiny text at 3x only after both ordinary passes find no readable lines.
+        for (int attempt = 0; attempt < (scale == 2 ? 4 : 2); ++attempt) {
+            const int currentScale = attempt < 2 ? scale : 3;
+            if (attempt % 2 == 0) {
+                const QImage scaled = currentScale > 1
+                    ? image.scaled(image.size() * currentScale, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                    : image;
+                input = QImage(scaled.size() + QSize(border * 2, border * 2), QImage::Format_RGB888);
+                input.fill(Qt::white);
+                QPainter painter(&input); painter.drawImage(border, border, scaled);
+            }
+            m_tesseract.SetPageSegMode(modes[attempt % 2]);
+            m_tesseract.SetImage(input.constBits(), input.width(), input.height(), 3, input.bytesPerLine());
+            m_tesseract.SetSourceResolution(qMax(70, dpi * currentScale));
             if (m_tesseract.Recognize(&m_monitor) != 0) {
                 result.canceled = m_canceled.load();
                 if (!result.canceled) result.error = tr("Could not recognize this screen area.");
@@ -116,8 +126,8 @@ void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraph
             QVector<OcrLine> lines;
             const std::unique_ptr<tesseract::ResultIterator> iterator(m_tesseract.GetIterator());
             auto bounds = [&](int left, int top, int right, int bottom) {
-                return QRect(QPoint(int(std::floor(double(left - border) / scale)), int(std::floor(double(top - border) / scale))),
-                             QPoint(int(std::ceil(double(right - border) / scale)) - 1, int(std::ceil(double(bottom - border) / scale)) - 1))
+                return QRect(QPoint(int(std::floor(double(left - border) / currentScale)), int(std::floor(double(top - border) / currentScale))),
+                             QPoint(int(std::ceil(double(right - border) / currentScale)) - 1, int(std::ceil(double(bottom - border) / currentScale)) - 1))
                     .intersected(QRect(QPoint(), originalSize));
             };
             int block = -1, paragraph = -1;

@@ -70,6 +70,18 @@ int main(int argc, char *argv[])
         {"paused", "Start with hover paused."},
         {"background", "Start in the tray when a tray is available."}
     });
+#ifdef Q_OS_WIN
+    // Qt's automatic help/version output uses a dialog for GUI-subsystem EXEs.
+    if (app.arguments().contains("--version") || app.arguments().contains("-v")) {
+        QTextStream(stdout) << app.applicationName() << ' ' << app.applicationVersion() << '\n';
+        return 0;
+    }
+    if (app.arguments().contains("--help") || app.arguments().contains("-h")
+        || app.arguments().contains("--help-all")) {
+        QTextStream(stdout) << parser.helpText();
+        return 0;
+    }
+#endif
     parser.process(app);
     SettingsStore store(parser.value("config"));
     auto settings = store.load();

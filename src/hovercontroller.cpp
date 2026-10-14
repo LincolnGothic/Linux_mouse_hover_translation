@@ -309,7 +309,10 @@ void HoverController::capture()
     const auto offset = crop.topLeft() - geometry.topLeft();
     const QRect pixels = QRectF(offset.x() * m_imageScale.x(), offset.y() * m_imageScale.y(),
         crop.width() * m_imageScale.x(), crop.height() * m_imageScale.y()).toAlignedRect().intersected(desktop.rect());
-    const QImage image = desktop.copy(pixels);
+    QImage image = desktop.copy(pixels);
+    // OCR preprocessing and token bounds operate on physical image pixels.
+    // Retaining the screen DPR would shrink QPainter's padded OCR input.
+    image.setDevicePixelRatio(1.0);
 #else
     const QImage image = screen->grabWindow(0, crop.x(), crop.y(), crop.width(), crop.height()).toImage();
 #endif
