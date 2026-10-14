@@ -36,6 +36,9 @@ void SettingsTest::smallWindow()
     QFETCH(QSize, size);
     QFETCH(int, fontSize);
     SettingsDialog dialog;
+#ifdef Q_OS_WIN
+    QVERIFY(dialog.findChild<QPushButton *>("gnomeSetupButton")->isHidden());
+#endif
     QFont font = dialog.font(); font.setPointSize(fontSize); dialog.setFont(font);
     dialog.setSettings(HoverSettings{});
     dialog.setStatus("Hover translation is paused. Choose your settings, then click Apply.");
@@ -87,7 +90,11 @@ void SettingsTest::smallWindow()
             QTRY_VERIFY(bar->value() > 0);
             bar->setValue(bar->maximum());
             QTest::qWait(20);
+#ifdef Q_OS_WIN
+            QWidget *last = i == 0 ? dialog.findChild<QWidget *>("windowsHoverLabel")
+#else
             QWidget *last = i == 0 ? dialog.findChild<QPushButton *>("gnomeSetupButton")
+#endif
                 : i == 1 ? dialog.findChild<QPushButton *>("testTranslationButton")
                 : dialog.findChild<QWidget *>("dictionaryLineEdit");
             QVERIFY(last);

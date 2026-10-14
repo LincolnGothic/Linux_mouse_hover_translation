@@ -12,6 +12,13 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#ifdef Q_OS_WIN
+#include <QFontDatabase>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTextStream>
+#include <QThread>
+#endif
 
 class CoreTest : public QObject {
     Q_OBJECT
@@ -129,7 +136,8 @@ void CoreTest::wordAndSentenceSelection()
 void CoreTest::wrappedSentenceOcr()
 {
     QImage image(650,170,QImage::Format_RGB32); image.fill(Qt::white);
-    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(24);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC");
+    font.setPixelSize(24);
     painter.setFont(font); painter.setPen(Qt::black);
     painter.drawText(20,50,"This sentence continues");
     painter.drawText(20,85,"on the next line."); painter.end();
@@ -287,7 +295,8 @@ void CoreTest::smallScreenTextOcr()
 {
     QFETCH(int,pixels); QFETCH(bool,dark);
     QImage image(280,35,QImage::Format_RGB32); image.fill(dark ? QColor("#202124") : Qt::white);
-    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(pixels);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC");
+    font.setPixelSize(pixels);
     painter.setFont(font); painter.setPen(dark ? Qt::white : Qt::black);
     painter.drawText(2,22,"Hello world"); painter.end();
     TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim",{}));
@@ -411,7 +420,7 @@ void CoreTest::offlineDictionaryBothDirectionsAndCancellation()
     const QString path = directory.filePath("cedict.u8");
     QFile dictionary(path); QVERIFY(dictionary.open(QIODevice::WriteOnly));
     dictionary.write(QString("# fixture, created for this test\n你好 你好 [ni3 hao3] /hello/hi/\n世界 世界 [shi4 jie4] /world/\n").toUtf8()); dictionary.close();
-    HoverSettings settings; settings.dictionaryPath = path; settings.pythonPath = "python3";
+    HoverSettings settings; settings.dictionaryPath = path; settings.pythonPath = qEnvironmentVariable("HOVER_TEST_PYTHON", QStringLiteral("python3"));
     MockServer server; settings.instance = server.url();
     TranslationService client;
     QSignalSpy success(&client, &TranslationService::translated);
@@ -437,13 +446,18 @@ void CoreTest::missingOfflinePythonFails()
     QSignalSpy failure(&client, &TranslationService::failed);
     QSignalSpy success(&client, &TranslationService::translated);
     client.translate(1, "Hello world", "en", "zh-CN", settings);
-    QVERIFY(failure.wait(3000));
+    QTRY_COMPARE_WITH_TIMEOUT(failure.count(), 1, 3000);
     QCOMPARE(success.count(), 0);
     QVERIFY(failure.last().at(1).toString().contains("offline", Qt::CaseInsensitive));
 }
 
 static HoverSettings delayedOfflineFixture(QTemporaryDir &directory)
 {
+#ifdef Q_OS_WIN
+    HoverSettings settings; settings.pythonPath = QCoreApplication::applicationFilePath();
+    settings.packagesPath = directory.path(); settings.useDictionary = false;
+    return settings;
+#else
     const QString path = directory.filePath("python-fixture");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return {};
@@ -460,6 +474,7 @@ static HoverSettings delayedOfflineFixture(QTemporaryDir &directory)
     file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     HoverSettings settings; settings.pythonPath = path; settings.packagesPath = directory.path(); settings.useDictionary = false;
     return settings;
+#endif
 }
 
 void CoreTest::offlineBusyRequestCancellation()
@@ -496,5 +511,34 @@ void CoreTest::offlineTimeoutAndRecovery()
     QCOMPARE(failure.count(),1);
 }
 
+#ifdef Q_OS_WIN
+int main(int argc, char **argv)
+{
+    if (argc > 2 && QString::fromLocal8Bit(argv[2]) == "--worker") {
+        QCoreApplication app(argc, argv);
+        const auto args = app.arguments();
+        const QString marker = args.value(args.indexOf("--packages-dir") + 1) + "/received";
+        QTextStream input(stdin), output(stdout);
+        output << "{\"ready\":true}\n" << Qt::flush;
+        while (!input.atEnd()) {
+            const auto request = QJsonDocument::fromJson(input.readLine().toUtf8()).object();
+            const auto text = request.value("text").toString();
+            if (text == "Slow") {
+                QFile file(marker); if (file.open(QIODevice::WriteOnly)) file.write("received"); file.close();
+                QThread::msleep(300);
+            }
+            const QJsonObject reply{{"id",request.value("id")},{"translation","result " + text}};
+            output << QJsonDocument(reply).toJson(QJsonDocument::Compact) << '\n' << Qt::flush;
+        }
+        return 0;
+    }
+    QApplication app(argc, argv);
+    const auto font = qEnvironmentVariable("HOVER_TEST_FONT");
+    if (!font.isEmpty() && QFontDatabase::addApplicationFont(font) < 0) return 2;
+    CoreTest test;
+    return QTest::qExec(&test, argc, argv);
+}
+#else
 QTEST_MAIN(CoreTest)
+#endif
 #include "test_core.moc"

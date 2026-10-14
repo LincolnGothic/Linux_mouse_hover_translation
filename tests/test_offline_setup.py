@@ -3,6 +3,8 @@
 import hashlib
 import importlib.util
 import io
+import json
+import zipfile
 from pathlib import Path
 import tempfile
 import unittest
@@ -24,6 +26,44 @@ class Response(io.BytesIO):
     def geturl(self): return self.url
 
 class OfflineSetupTest(unittest.TestCase):
+    def test_runtime_python_uses_native_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory) / "argos-env"
+            self.assertEqual(setup.runtime_python(runtime, windows=True), runtime / "Scripts/python.exe")
+            self.assertEqual(setup.runtime_python(runtime, windows=False), runtime / "bin/python")
+
+    def test_windows_default_data_is_beside_installed_helpers(self):
+        expected = root / "data"
+        self.assertEqual(setup.default_data_directory(windows=True), expected)
+
+    def test_partial_model_is_preserved_outside_package_search(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "argos-packages"
+            directory.mkdir()
+            partial = directory / "translate-en_zh-1_9"
+            partial.mkdir()
+            (partial / "metadata.json").write_text(json.dumps({"from_code": "en", "to_code": "zh"}))
+            (partial / "user-note.txt").write_text("keep this")
+            installed = directory / "translate-zh_en-1_9"
+            (installed / "model").mkdir(parents=True)
+            (installed / "metadata.json").write_text(json.dumps({"from_code": "zh", "to_code": "en"}))
+            (installed / "model/model.bin").write_bytes(b"existing")
+            payload = io.BytesIO()
+            with zipfile.ZipFile(payload, "w") as archive:
+                archive.writestr("translate-en_zh-1_9/metadata.json", json.dumps({"from_code": "en", "to_code": "zh"}))
+                archive.writestr("translate-en_zh-1_9/model/model.bin", b"new model")
+            index = [{"from_code": "en", "to_code": "zh", "package_version": "1.9", "links": ["https://example.com/model"]}]
+            def download(url, target):
+                target.write_bytes(payload.getvalue())
+                return "test-checksum"
+            with patch.object(setup, "open_download", return_value=Response(json.dumps(index).encode())), patch.object(setup, "download", side_effect=download):
+                setup.install_models(directory)
+            self.assertEqual((partial / "model/model.bin").read_bytes(), b"new model")
+            backups = list((directory.parent / "argos-package-backups").glob("translate-en_zh-1_9*"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual((backups[0] / "user-note.txt").read_text(), "keep this")
+            self.assertEqual((installed / "model/model.bin").read_bytes(), b"existing")
+
     def test_identifies_app_and_checks_content(self):
         data = b"model data"
         def request(request, timeout):

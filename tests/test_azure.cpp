@@ -13,6 +13,37 @@
 #include <QUrlQuery>
 #include <QtTest>
 #include <cstring>
+#ifdef Q_OS_WIN
+#include <QCryptographicHash>
+#include <QFileInfo>
+#include <QDir>
+#define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <wincred.h>
+
+namespace {
+QString credentialTarget(const QString &directory)
+{
+    const auto path = QDir::cleanPath(QFileInfo(directory).absoluteFilePath()).toCaseFolded();
+    return "HoverTranslate/Azure/" + QString::fromLatin1(
+        QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+class TestCloudDirectory : public QTemporaryDir {
+public:
+    ~TestCloudDirectory() {
+        if (!isValid()) return;
+        // Only this unique fixture's target; never a user's saved credential.
+        const auto target = credentialTarget(filePath("cloud")).toStdWString();
+        CredDeleteW(target.c_str(), CRED_TYPE_GENERIC, 0);
+    }
+};
+}
+#else
+using TestCloudDirectory = QTemporaryDir;
+#endif
 
 class MockReply : public QNetworkReply {
 public:
@@ -66,6 +97,8 @@ class AzureTest : public QObject {
     Q_OBJECT
 private slots:
     void settingsMigrationAndSecrets();
+    void credentialsRoundtripAndIsolation();
+    void invalidCredentials();
     void languageMappingAndParsing();
     void errors_data();
     void errors();
@@ -78,7 +111,7 @@ private slots:
 
 void AzureTest::settingsMigrationAndSecrets()
 {
-    QTemporaryDir directory; SettingsStore settings(directory.filePath("settings.ini"));
+    TestCloudDirectory directory; SettingsStore settings(directory.filePath("settings.ini"));
     QCOMPARE(settings.load().provider, QString("offline"));
     { QSettings legacy(settings.fileName(), QSettings::IniFormat);
       legacy.setValue("translation/provider", "mozhi"); }
@@ -90,6 +123,66 @@ void AzureTest::settingsMigrationAndSecrets()
     QFile ini(settings.fileName()); QVERIFY(ini.open(QIODevice::ReadOnly));
     QVERIFY(!ini.readAll().contains("fixture-secret"));
     value.provider = "invalid"; QVERIFY(!settings.save(value));
+}
+
+void AzureTest::credentialsRoundtripAndIsolation()
+{
+    TestCloudDirectory directory, otherDirectory;
+    const auto cloudPath = directory.filePath("cloud");
+    CloudStore store(cloudPath), other(otherDirectory.filePath("cloud"));
+    QString error;
+    QVERIFY(store.credentials(&error).isEmpty()); QVERIFY(error.isEmpty());
+    QVERIFY2(store.saveCredentials(" fixture-secret ", "westus", &error), qPrintable(error));
+    const auto loaded = CloudStore(cloudPath).credentials(&error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(loaded.value("key").toString(), QString("fixture-secret"));
+    QCOMPARE(loaded.value("region").toString(), QString("westus"));
+    QVERIFY(other.credentials(&error).isEmpty()); QVERIFY(error.isEmpty());
+    QVERIFY(other.saveCredentials("other-fixture", "eastus"));
+    QCOMPARE(store.credentials().value("key").toString(), QString("fixture-secret"));
+    QCOMPARE(other.credentials().value("key").toString(), QString("other-fixture"));
+#ifdef Q_OS_WIN
+    QVERIFY(!QFile::exists(directory.filePath("cloud/azure-credentials.json")));
+    QCOMPARE(CloudStore(cloudPath + "/.").credentials(), loaded);
+    const auto target = credentialTarget(cloudPath).toStdWString();
+    PCREDENTIALW credential = nullptr;
+    QVERIFY(CredReadW(target.c_str(), CRED_TYPE_GENERIC, 0, &credential));
+    const auto persist = credential->Persist;
+    const auto blob = QByteArray(reinterpret_cast<const char *>(credential->CredentialBlob),
+                                 int(credential->CredentialBlobSize));
+    CredFree(credential);
+    QCOMPARE(persist, DWORD(CRED_PERSIST_LOCAL_MACHINE));
+    QCOMPARE(QJsonDocument::fromJson(blob).object(), loaded);
+#endif
+}
+
+void AzureTest::invalidCredentials()
+{
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
+    QString error;
+    for (const auto &key : {QString(), QString(" \t "), QString("key\r\nInjected: value"), QString(2049, 'x')}) {
+        QVERIFY(!store.saveCredentials(key, "westus", &error)); QVERIFY(!error.isEmpty());
+        QVERIFY(store.credentials().isEmpty());
+    }
+    for (const auto &region : {QString("West US"), QString("westus\r\n"), QString("westus\n"), QString("west_us")}) {
+        QVERIFY(!store.saveCredentials("fixture-secret", region, &error)); QVERIFY(!error.isEmpty());
+        QVERIFY(store.credentials().isEmpty());
+    }
+#ifdef Q_OS_WIN
+    QVERIFY2(store.saveCredentials(QString(2048, 'x'), "westus", &error), qPrintable(error));
+    QCOMPARE(store.credentials().value("key").toString(), QString(2048, 'x'));
+    QVERIFY(store.saveCredentials("fixture-secret", "westus"));
+    const auto target = credentialTarget(directory.filePath("cloud")).toStdWString();
+    PCREDENTIALW credential = nullptr;
+    QVERIFY(CredReadW(target.c_str(), CRED_TYPE_GENERIC, 0, &credential));
+    const auto invalid = QByteArray(R"({"key":"","region":"westus"})");
+    credential->CredentialBlob = reinterpret_cast<LPBYTE>(const_cast<char *>(invalid.constData()));
+    credential->CredentialBlobSize = DWORD(invalid.size());
+    const bool written = CredWriteW(credential, 0);
+    CredFree(credential);
+    QVERIFY(written);
+    QVERIFY(store.credentials(&error).isEmpty()); QVERIFY(error.contains("Invalid"));
+#endif
 }
 
 void AzureTest::languageMappingAndParsing()
@@ -127,7 +220,7 @@ void AzureTest::errors_data()
 void AzureTest::errors()
 {
     QFETCH(int, status); QFETCH(int, networkError); QFETCH(QString, message);
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     QVERIFY(store.saveCredentials("fixture-secret", "westus"));
     MockNetwork network; network.code = status;
     network.error = QNetworkReply::NetworkError(networkError);
@@ -144,7 +237,7 @@ void AzureTest::errors()
 
 void AzureTest::missingCredentialsAndPrivatePermissions()
 {
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     MockNetwork network; TranslationService service(nullptr, &network, store);
     QSignalSpy failed(&service, &TranslationService::failed);
     HoverSettings settings; settings.provider = "azure";
@@ -152,6 +245,7 @@ void AzureTest::missingCredentialsAndPrivatePermissions()
     QCOMPARE(failed.count(), 1); QCOMPARE(network.requests, 0);
     QVERIFY(failed[0][1].toString().contains("credentials"));
     QVERIFY(store.saveCredentials("fixture-secret", "westus"));
+#ifndef Q_OS_WIN
     const auto path = directory.filePath("cloud/azure-credentials.json");
     const auto permissions = QFile::permissions(path);
     QVERIFY(!(permissions & (QFile::ReadGroup | QFile::ReadOther | QFile::WriteGroup | QFile::WriteOther)));
@@ -159,11 +253,12 @@ void AzureTest::missingCredentialsAndPrivatePermissions()
     QString error; QVERIFY(store.credentials(&error).isEmpty()); QVERIFY(error.contains("permissions"));
     service.translate(2, "Hello", "en", "zh-CN", settings);
     QCOMPARE(network.requests, 0);
+#endif
 }
 
 void AzureTest::requestAndUsage()
 {
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     QVERIFY(store.saveCredentials("fixture-secret", "westus"));
     MockNetwork network; TranslationService service(nullptr, &network, store);
     QSignalSpy translated(&service, &TranslationService::translated);
@@ -181,7 +276,7 @@ void AzureTest::requestAndUsage()
     QCOMPARE(store.usage().value("characters").toInt(), 6);
     QFile usage(directory.filePath("cloud/cloud-usage.json")); QVERIFY(usage.open(QIODevice::ReadOnly));
     const auto raw = usage.readAll();
-    for (const auto &forbidden : {"Hello", "fixture-secret", "translations"}) QVERIFY(!raw.contains(forbidden));
+    for (const auto &forbidden : {"Hello", "fixture-secret", "westus", "translations"}) QVERIFY(!raw.contains(forbidden));
     QSignalSpy failed(&service, &TranslationService::failed);
     service.translate(10, "Hello", "ja", "zh-CN", settings);
     QCOMPARE(failed.count(), 1); QCOMPARE(network.requests, 1);
@@ -191,7 +286,7 @@ void AzureTest::requestAndUsage()
 
 void AzureTest::cancellationTimeoutAndStaleReply()
 {
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     QVERIFY(store.saveCredentials("fixture-secret", "westus"));
     MockNetwork network; network.delay = 100;
     TranslationService service(nullptr, &network, store); service.setTimeoutMs(20);
@@ -215,7 +310,7 @@ void AzureTest::cancellationTimeoutAndStaleReply()
 
 void AzureTest::usageRollover()
 {
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     QVERIFY(store.record(7, nullptr, QDate(2026, 10, 31)));
     QVERIFY(store.record(3, nullptr, QDate(2026, 10, 31)));
     QCOMPARE(store.usage(QDate(2026, 10, 31)).value("requests").toInt(), 2);
@@ -235,7 +330,7 @@ void AzureTest::providerCacheSeparation()
     settings.provider = "mozhi";
     const auto mozhi = translationCacheKey(settings, "Hello", "en");
     QVERIFY(mozhi != azure); QVERIFY(mozhi != offline);
-    QTemporaryDir directory; CloudStore store(directory.filePath("cloud"));
+    TestCloudDirectory directory; CloudStore store(directory.filePath("cloud"));
     QVERIFY(store.saveCredentials("fixture-secret", "westus"));
     settings.provider = "azure";
     QCOMPARE(translationCacheKey(settings, "Hello", "en"), azure);

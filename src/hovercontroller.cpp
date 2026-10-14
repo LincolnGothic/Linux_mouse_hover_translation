@@ -6,9 +6,49 @@
 #include <QGuiApplication>
 #include <QScreen>
 #include <cstdlib>
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <xcb/xcb.h>
+#endif
 
 namespace {
+#ifdef Q_OS_WIN
+bool sessionAvailable()
+{
+    const auto desktop = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS);
+    wchar_t name[256]{}; DWORD length = 0;
+    const bool available = desktop && GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &length)
+        && QString::fromWCharArray(name).compare("Default", Qt::CaseInsensitive) == 0;
+    if (desktop) CloseDesktop(desktop);
+    return available;
+}
+
+HWND pointerWindow()
+{
+    POINT pointer{};
+    return GetCursorPos(&pointer) ? GetAncestor(WindowFromPoint(pointer), GA_ROOT) : nullptr;
+}
+
+QRect windowUnderPointer()
+{
+    POINT pointer{}; RECT bounds{};
+    const auto window = pointerWindow();
+    auto *screen = QGuiApplication::screenAt(QCursor::pos());
+    if (!window || !screen || !GetCursorPos(&pointer) || !GetWindowRect(window, &bounds)) return {};
+    MONITORINFO monitor{}; monitor.cbSize = sizeof(monitor);
+    if (!GetMonitorInfoW(MonitorFromPoint(pointer, MONITOR_DEFAULTTONEAREST), &monitor)) return {};
+    const auto geometry = screen->geometry();
+    const qreal scaleX = qreal(geometry.width()) / (monitor.rcMonitor.right - monitor.rcMonitor.left);
+    const qreal scaleY = qreal(geometry.height()) / (monitor.rcMonitor.bottom - monitor.rcMonitor.top);
+    return QRectF(geometry.x() + (bounds.left - monitor.rcMonitor.left) * scaleX,
+        geometry.y() + (bounds.top - monitor.rcMonitor.top) * scaleY,
+        (bounds.right - bounds.left) * scaleX, (bounds.bottom - bounds.top) * scaleY).toAlignedRect();
+}
+#else
 QRect windowUnderPointer()
 {
     auto *connection = xcb_connect(nullptr, nullptr);
@@ -32,12 +72,16 @@ QRect windowUnderPointer()
     xcb_disconnect(connection);
     return bounds;
 }
+#endif
 }
 
 HoverController::HoverController(TesseractOcr *ocr, TranslationService *translator, QObject *parent)
     : QObject(parent), m_ocr(ocr), m_translator(translator),
       m_popup(new TranslationPopup), m_escape(new X11Escape(this)), m_gnome(new GnomeHover(this))
 {
+#ifdef Q_OS_WIN
+    m_highlight.setWindowFlag(Qt::WindowTransparentForInput);
+#endif
     connect(m_gnome, &GnomeHover::statusChanged, this, [this](const QString &message) {
         if (m_usingGnome) emit statusChanged(message);
     });
@@ -63,7 +107,10 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
         }
         if (m_settings.highlightSource) {
             auto boxes=HoverPolicy::sourceBounds(lines,m_imagePointer,m_sourceText);
-            for (auto &box:boxes) box.translate(m_cropOrigin);
+            for (auto &box:boxes)
+                box = QRectF(m_cropOrigin.x() + box.x() / m_imageScale.x(),
+                    m_cropOrigin.y() + box.y() / m_imageScale.y(),
+                    box.width() / m_imageScale.x(), box.height() / m_imageScale.y()).toAlignedRect();
             m_highlight.showBoxes(boxes);
         }
         const QString source = HoverPolicy::sourceLanguage(m_sourceText);
@@ -105,6 +152,10 @@ HoverController::~HoverController()
 
 QString HoverController::platformProblem()
 {
+#ifdef Q_OS_WIN
+    return QGuiApplication::platformName() == "windows" && !QGuiApplication::screens().isEmpty()
+        ? QString() : tr("Automatic hover requires an interactive Windows desktop.");
+#else
     if (qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
         || qEnvironmentVariableIsSet("WAYLAND_DISPLAY") || QGuiApplication::platformName() == "wayland")
         return GnomeHover::available() ? QString() : tr("Enable the Hover Translate GNOME extension for Wayland hover. Click Set up GNOME hover, then sign out and back in.");
@@ -114,6 +165,7 @@ QString HoverController::platformProblem()
     if (screens.size() != 1 || !qFuzzyCompare(screens.first()->devicePixelRatio(), 1.0))
         return tr("This first version supports one monitor at 100% scaling.");
     return {};
+#endif
 }
 
 bool HoverController::configure(const HoverSettings &settings, QString *error)
@@ -127,8 +179,12 @@ bool HoverController::configure(const HoverSettings &settings, QString *error)
     m_dictionary.load(settings.provider == "offline" && settings.useDictionary ? (settings.dictionaryPath.isEmpty() ? offlineDataDirectory() + "/cedict.u8" : settings.dictionaryPath) : QString());
     QString problem;
     const bool valid = SettingsStore::validate(settings, &problem);
+#ifdef Q_OS_WIN
+    const bool wayland = false;
+#else
     const bool wayland = qEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
         || qEnvironmentVariableIsSet("WAYLAND_DISPLAY") || QGuiApplication::platformName() == "wayland";
+#endif
     const bool wasGnome = m_usingGnome;
     m_usingGnome = wayland && GnomeHover::available();
     if (wasGnome && !m_usingGnome) {
@@ -161,6 +217,13 @@ void HoverController::setIgnoredWidgets(const QList<QWidget *> &widgets)
 
 bool HoverController::blocked(QPoint pointer) const
 {
+#ifdef Q_OS_WIN
+    if (!sessionAvailable()) return true;
+    DWORD process = 0;
+    const auto window = pointerWindow();
+    if (window) GetWindowThreadProcessId(window, &process);
+    if (process == GetCurrentProcessId()) return true;
+#endif
     if (QApplication::activeModalWidget() || QApplication::activePopupWidget()) return true;
     if (m_popup->isVisible() && m_popup->frameGeometry().contains(pointer)) return true;
     for (const auto &widget : m_ignored)
@@ -171,6 +234,9 @@ bool HoverController::blocked(QPoint pointer) const
 
 bool HoverController::current(quint64 generation) const
 {
+#ifdef Q_OS_WIN
+    if (quintptr(pointerWindow()) != m_pointerWindow) return false;
+#endif
     return m_enabled && generation == m_policy.generation()
         && !HoverPolicy::moved(QCursor::pos(), m_capturePointer) && !blocked(QCursor::pos());
 }
@@ -187,6 +253,15 @@ void HoverController::invalidate()
 
 void HoverController::poll()
 {
+#ifdef Q_OS_WIN
+    if (!sessionAvailable()) { m_policy.reset(); invalidate(); return; }
+    const auto window = quintptr(pointerWindow());
+    if (window != m_pointerWindow && !m_popup->pinned()
+        && (!m_popup->isVisible() || (!m_popup->frameGeometry().contains(QCursor::pos())
+            && !HoverPolicy::moved(QCursor::pos(), m_capturePointer)))) {
+        m_pointerWindow = window; m_policy.reset(); invalidate();
+    }
+#endif
     if (m_popup->isVisible() && m_popup->pinned()) return;
     const auto modifiers=QGuiApplication::queryKeyboardModifiers();
     const auto effective = m_settings.temporaryModes && (modifiers & Qt::ShiftModifier)
@@ -214,20 +289,47 @@ void HoverController::capture()
 {
     if (!m_enabled || blocked(QCursor::pos())) return;
     m_capturePointer = QCursor::pos();
-    auto *screen = QGuiApplication::primaryScreen();
+    auto *screen = QGuiApplication::screenAt(m_capturePointer);
+    if (!screen) return;
     QRect crop = QRect(m_capturePointer - QPoint(350, 80), QSize(700, 160))
         .intersected(screen->geometry());
     // Keep the OCR crop inside the hovered window. Dark desktop borders and
     // adjacent windows can otherwise disrupt sparse-text segmentation.
     const auto window = windowUnderPointer();
     if (window.contains(m_capturePointer)) crop = crop.intersected(window);
+    if (crop.isEmpty()) return;
+#ifdef Q_OS_WIN
+    // A full monitor capture avoids platform-specific sub-area coordinate
+    // conventions. OCR uses image pixels; pointer/highlight coordinates use Qt
+    // logical pixels, including fractional scaling and nonzero monitor origins.
+    const QImage desktop = screen->grabWindow(0).toImage();
+    if (desktop.isNull()) { emit statusChanged(tr("Could not capture this screen area.")); return; }
+    const auto geometry = screen->geometry();
+    m_imageScale = QPointF(qreal(desktop.width()) / geometry.width(), qreal(desktop.height()) / geometry.height());
+    const auto offset = crop.topLeft() - geometry.topLeft();
+    const QRect pixels = QRectF(offset.x() * m_imageScale.x(), offset.y() * m_imageScale.y(),
+        crop.width() * m_imageScale.x(), crop.height() * m_imageScale.y()).toAlignedRect().intersected(desktop.rect());
+    QImage image = desktop.copy(pixels);
+    // OCR preprocessing and token bounds operate on physical image pixels.
+    // Retaining the screen DPR would shrink QPainter's padded OCR input.
+    image.setDevicePixelRatio(1.0);
+#else
     const QImage image = screen->grabWindow(0, crop.x(), crop.y(), crop.width(), crop.height()).toImage();
+#endif
     if (image.isNull()) {
         emit statusChanged(tr("Could not capture this screen area."));
         return;
     }
-    m_captureMode=m_effectiveMode; m_cropOrigin=crop.topLeft();
+    m_captureMode=m_effectiveMode;
+#ifdef Q_OS_WIN
+    m_imagePointer = QPoint(qRound((m_capturePointer.x() - geometry.x()) * m_imageScale.x()) - pixels.x(),
+        qRound((m_capturePointer.y() - geometry.y()) * m_imageScale.y()) - pixels.y());
+    m_cropOrigin = QPoint(qRound(geometry.x() + pixels.x() / m_imageScale.x()),
+        qRound(geometry.y() + pixels.y() / m_imageScale.y()));
+#else
+    m_cropOrigin = crop.topLeft();
     m_imagePointer = m_capturePointer - crop.topLeft();
+#endif
     m_ocrGeneration = m_policy.generation();
     m_haveOcr = true;
     emit statusChanged(tr("Reading text under the pointer…"));

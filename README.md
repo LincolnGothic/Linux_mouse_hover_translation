@@ -3,7 +3,7 @@
 [English](README.md) · [简体中文](README.zh-CN.md)
 
 Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.5.0** adds opt-in Microsoft Azure Translator while preserving Offline Argos, Mozhi and the tabbed settings window.
+Version **0.6.0** adds native **Windows x64** support while preserving Linux hover, Offline Argos, Azure, Mozhi and the tabbed settings window.
 Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
 translation and optional CC-CEDICT word definitions require no API key in Offline mode.
 Azure Translator is opt-in; Mozhi remains available.
@@ -15,14 +15,20 @@ shell popups pass in a headless GNOME 50 compositor. Physical desktops,
 fractional scaling and other GNOME versions remain unverified. The installer
 does not bundle translation models. See [validation](docs/TESTING.md).
 
+## Install on Windows x64
+
+Download the [Windows preview](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0), verify the ZIP checksum, extract it and run `install-windows.ps1`. The default folder is `D:\software\HoverTranslate\app-0.6.0`. Offline setup downloads a private CPU Python runtime and both translation models into the application folder; OCR models and DLLs are bundled.
+
+Detailed installation, build instructions and limits: [Windows guide](docs/WINDOWS.md).
+
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.5.0),
+[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
 ```bash
-sudo apt install ./hover-translate_0.5.0_amd64.deb
+sudo apt install ./hover-translate_0.6.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -249,6 +255,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.5.0-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.6.0-Source.tar.gz`. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).

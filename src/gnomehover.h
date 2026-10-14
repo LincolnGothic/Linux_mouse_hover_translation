@@ -6,7 +6,9 @@
 #include "tesseractocr.h"
 #include "translationservice.h"
 #include <QCache>
+#ifndef Q_OS_WIN
 #include <QDBusServiceWatcher>
+#endif
 #include <optional>
 
 class GnomeHover : public QObject {
@@ -21,6 +23,7 @@ signals:
     void statusChanged(const QString &message);
     void popupShown(const QString &source, const QString &translation);
     void availabilityChanged();
+#ifndef Q_OS_WIN
 private slots:
     void capture(uint token, const QByteArray &png, double x, double y);
     void captureMode(uint token, const QByteArray &png, double x, double y, const QString &mode);
@@ -44,5 +47,7 @@ private:
     QString m_source, m_key;
     quint64 m_epoch = 0, m_ocrEpoch = 0, m_configuration = 0;
     uint m_token = 0;
+#endif
+private:
     bool m_enabled = false;
 };

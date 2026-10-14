@@ -46,6 +46,10 @@ private:
     SourceHighlight m_highlight;
     QString m_captureMode, m_effectiveMode;
     QPoint m_cropOrigin;
+    QPointF m_imageScale{1, 1};
+#ifdef Q_OS_WIN
+    quintptr m_pointerWindow = 0;
+#endif
     qint64 m_popupGrace = -1;
     X11Escape *m_escape;
     GnomeHover *m_gnome;

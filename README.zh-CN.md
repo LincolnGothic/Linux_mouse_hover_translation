@@ -1,5 +1,10 @@
 # Hover Translate
 
+**0.6.0 新增原生 Windows x64 支持。** 保留 Linux 悬停取词、离线 Argos、Azure、Mozhi 和现有设置界面。
+
+Windows 用户请下载 [v0.6.0](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0) 的 ZIP，校验 SHA256，解压后运行 `install-windows.ps1`。默认安装到 `D:\software\HoverTranslate\app-0.6.0`，创建桌面快捷方式。离线运行时、翻译模型、词典和设置保存在程序的 `data` 文件夹；OCR 模型和所需 DLL 已打包。初次设置需要联网，之后离线翻译不联网。Azure 密钥使用 Windows 凭据管理器保存。详情见 [Windows 安装与构建指南](docs/WINDOWS.md)。
+
+
 ## Azure 翻译（可选）
 
 原有用户保留 Offline/Mozhi 设置，默认仍为 Offline；离线翻译留在本机。
@@ -33,12 +38,12 @@ XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.5.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.5.0)
+从 [v0.6.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 
 ```bash
-sudo apt install ./hover-translate_0.5.0_amd64.deb
+sudo apt install ./hover-translate_0.6.0_amd64.deb
 /usr/bin/hover-translate
 ```
 
@@ -132,6 +137,6 @@ bash tools/build-ubuntu26.04.sh --model-check
 详细证据及限制见 [docs/TESTING.md](docs/TESTING.md)。
 
 分发二进制时同时提供完整对应源码，包括扩展及构建、安装脚本。
-本版对应 `hover-translate-0.5.0-Source.tar.gz`。
+本版对应 `hover-translate-0.6.0-Source.tar.gz`。
 版权和许可见 [NOTICE.md](NOTICE.md)，上游来源见
 [docs/UPSTREAM.md](docs/UPSTREAM.md)。

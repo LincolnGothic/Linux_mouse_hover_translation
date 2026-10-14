@@ -1,5 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "portalcapture.h"
+#ifdef Q_OS_WIN
+#include <QGuiApplication>
+#include <QScreen>
+#include <QPixmap>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+PortalCapture::PortalCapture(QObject *parent) : QObject(parent) {}
+void PortalCapture::cancel() { ++m_generation; }
+void PortalCapture::capture()
+{
+    cancel();
+    const auto generation = m_generation;
+    QTimer::singleShot(0, this, [this, generation] {
+        if (generation != m_generation) return;
+        const auto desktop = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS);
+        wchar_t name[256]{}; DWORD length = 0;
+        const bool unlocked = desktop && GetUserObjectInformationW(desktop, UOI_NAME, name, sizeof(name), &length)
+            && QString::fromWCharArray(name).compare("Default", Qt::CaseInsensitive) == 0;
+        if (desktop) CloseDesktop(desktop);
+        if (!unlocked) { emit failed(tr("Screen capture is unavailable while this Windows session is locked.")); return; }
+        auto *screen = QGuiApplication::primaryScreen();
+        QImage image = screen ? screen->grabWindow(0).toImage() : QImage();
+        image.setDevicePixelRatio(1.0);
+        if (image.isNull()) emit failed(tr("Could not capture the primary screen."));
+        else emit captured(image);
+    });
+}
+#else
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
@@ -83,3 +114,5 @@ void PortalCapture::response(uint code, const QVariantMap &results, const QDBusM
     if (image.isNull()) { emit failed(tr("Could not open the desktop screenshot.")); return; }
     emit captured(image);
 }
+
+#endif

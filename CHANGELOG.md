@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — native Windows x64 preview
+
+- Add native Windows hover capture/input, scale-aware crop coordinates, Escape handling and secure-desktop cancellation.
+- Preserve word/line/sentence selection, highlights, popup actions and Linux implementations.
+- Add Windows app-local settings, standalone offline CPU runtime/model setup and Credential Manager Azure storage.
+- Bundle required runtime DLLs, OCR data, dependency notices, matching source and Windows install/launch shortcut script.
+- Add native Windows integration and CI, preserve existing Linux/provider regression checks.
+
 ## 0.5.0 — optional Microsoft Azure Translator
 
 - Add explicit Offline/Azure/Mozhi provider paths using REST v3 and the existing Qt Network dependency.

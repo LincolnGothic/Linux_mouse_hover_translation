@@ -1,6 +1,6 @@
 # Copyright and license notices
 
-Hover Translate 0.4.2 is a modified work using components of Crow Translate
+Hover Translate 0.6.0 is a modified work using components of Crow Translate
 4.1.0. The application and its corresponding source are licensed under
 **GNU GPL version 3 or later (GPL-3.0-or-later)**. The complete terms are in
 [LICENSE](LICENSE). There is no warranty.
@@ -22,15 +22,15 @@ independently maintained and is not an official Crow Translate release. Its
 name and icon were created for this project; Crow's branding and other assets
 are not included.
 
-The binary uses separately installed shared libraries and OCR models:
+Linux uses separately installed shared libraries and OCR models. The Windows ZIP bundles replaceable Qt/Tesseract/Leptonica and transitive runtime DLLs plus English/Chinese OCR models; their notices are retained in `third-party-licenses`. Translation runtimes/models and dictionaries still download separately:
 
 | Dependency | Upstream license | Distribution in this project |
 | --- | --- | --- |
-| Qt 6 Core, Gui, Widgets, Network, Concurrent, StateMachine, DBus, Wayland and SVG plugins | LGPL-3.0 / GPL licenses, plus component-specific third-party notices | Dynamic system libraries; not bundled |
-| Tesseract OCR | Apache-2.0 | Dynamic system library; not bundled |
-| Leptonica | BSD-2-Clause | Dynamic system library; not bundled |
-| XCB | MIT | Dynamic system library; not bundled |
-| Tesseract `eng`, `chi_sim`, `osd` models (`tessdata_fast`) | Apache-2.0 | Installed separately; not bundled |
+| Qt 6 Core, Gui, Widgets, Network, Concurrent, StateMachine, DBus, Wayland and SVG plugins | LGPL-3.0 / GPL licenses, plus component-specific third-party notices | System libraries on Linux; relevant Windows DLLs/plugins bundled |
+| Tesseract OCR | Apache-2.0 | System library on Linux; Windows DLL bundled |
+| Leptonica | BSD-2-Clause | System library on Linux; Windows DLL bundled |
+| XCB | MIT | Linux system library only; not used by the Windows implementation |
+| Tesseract `eng`, `chi_sim`, `osd` models (`tessdata_fast`) | Apache-2.0 | English/Chinese models bundled on Windows; system models on Linux |
 | Noto CJK font used by tests | SIL Open Font License 1.1 | Installed separately; not bundled |
 | Argos Translate 1.11.0 | MIT; retained in `LICENSES/Argos-MIT.txt` | Installed into a private user runtime; not bundled |
 | CPU PyTorch 2.14.1 and Argos dependencies | Their respective package licenses and third-party notices | Installed separately; not bundled |

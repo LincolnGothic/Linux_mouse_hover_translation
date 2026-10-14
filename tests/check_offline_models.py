@@ -5,7 +5,11 @@ import argparse
 import os
 import re
 import subprocess
+import sys
 import tempfile
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("binary")
@@ -16,13 +20,13 @@ cases = [
     ("Hello world", "zh-CN", [("你好", "哈罗"), ("世界",)]),
     ("你好世界", "en", [("hello",), ("world",)]),
 ]
-environment = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+environment = dict(os.environ, QT_QPA_PLATFORM="windows" if sys.platform == "win32" else "offscreen")
 with tempfile.TemporaryDirectory() as directory:
     for text, target, words in cases:
         result = subprocess.run([args.binary, "--config", directory + "/settings.ini",
             "--provider", "offline", "--translate", text, "--target", target,
             "--python", args.python, "--models-dir", args.models_dir, "--no-dictionary"],
-            text=True, capture_output=True, env=environment, timeout=120)
+            text=True, encoding="utf-8", capture_output=True, env=environment, timeout=120)
         if result.returncode:
             raise SystemExit(result.stderr.strip() or "Offline translation failed")
         normalized = re.sub(r"\s+", "", result.stdout.lower())

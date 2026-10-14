@@ -12,12 +12,31 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
-import venv
 import zipfile
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 INDEX = "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json"
 DICTIONARY = "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
-USER_AGENT = "HoverTranslate/0.4.2 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"
+USER_AGENT = "HoverTranslate/0.6.0 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"
+
+
+def runtime_python(runtime, windows=None):
+    if windows is None:
+        windows = sys.platform == "win32"
+    return runtime / ("Scripts/python.exe" if windows else "bin/python")
+
+
+def default_data_directory(windows=None):
+    if windows is None:
+        windows = sys.platform == "win32"
+    if windows:
+        helpers = Path(__file__).resolve().parent
+        application = helpers.parent.parent if helpers.parent.name == "share" else helpers.parent
+        return application / "data"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "hover-translate"
 
 
 def open_download(url, timeout=60):
@@ -57,7 +76,7 @@ def install_models(directory):
         existing = False
         for metadata in directory.glob("*/metadata.json"):
             try:
-                data = json.loads(metadata.read_text())
+                data = json.loads(metadata.read_text(encoding="utf-8"))
                 if data.get("from_code") == source and data.get("to_code") == target:
                     if (metadata.parent / "model" / "model.bin").is_file():
                         existing = True
@@ -90,19 +109,26 @@ def install_models(directory):
             if len(roots) != 1:
                 raise ValueError("Unexpected model archive structure.")
             root = roots[0]
-            metadata = json.loads((root / "metadata.json").read_text())
+            metadata = json.loads((root / "metadata.json").read_text(encoding="utf-8"))
             if metadata.get("from_code") != source or metadata.get("to_code") != target:
                 raise ValueError("Downloaded model has the wrong language pair.")
             if not (root / "model/model.bin").is_file():
                 raise ValueError("Downloaded model is incomplete.")
             destination = directory / root.name
             if destination.exists():
-                import shutil
-                shutil.rmtree(destination)
+                # Keep incomplete/user-modified files outside Argos' package scan.
+                backups = directory.parent / "argos-package-backups"
+                backups.mkdir(exist_ok=True)
+                backup = backups / root.name
+                number = 1
+                while backup.exists():
+                    backup = backups / f"{root.name}.{number}"
+                    number += 1
+                destination.rename(backup)
             root.rename(destination)
             records.append({"source": source, "target": target, "version": "1.9", "url": url, "sha256": checksum})
     manifest = directory / "download-manifest.json"
-    previous = json.loads(manifest.read_text()) if manifest.exists() else []
+    previous = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
     manifest.write_text(json.dumps(previous + records, indent=2) + "\n")
 
 
@@ -125,22 +151,27 @@ def install_dictionary(directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", default=str(Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "hover-translate"))
+    parser.add_argument("--data-dir", default=str(default_data_directory()))
     parser.add_argument("--models-only", action="store_true", help="Use an already installed runtime.")
     parser.add_argument("--dictionary-only", action="store_true")
     parser.add_argument("--without-dictionary", action="store_true")
     args = parser.parse_args()
     directory = Path(args.data_dir).expanduser().resolve()
     directory.mkdir(parents=True, exist_ok=True)
+    if sys.platform == "win32":
+        os.environ["PIP_CACHE_DIR"] = str(directory / "pip-cache")
+        os.environ["TMP"] = os.environ["TEMP"] = str(directory / "temporary")
+        Path(os.environ["TEMP"]).mkdir(exist_ok=True)
     if args.dictionary_only:
         install_dictionary(directory)
         return
     if not args.models_only:
         runtime = directory / "argos-env"
-        if not (runtime / "bin/python").exists():
+        python = str(runtime_python(runtime))
+        if not Path(python).exists():
             print("Preparing the local translation runtime…", flush=True)
+            import venv
             venv.EnvBuilder(with_pip=True).create(runtime)
-        python = str(runtime / "bin/python")
         subprocess.run([python, "-m", "pip", "install", "--disable-pip-version-check", "--index-url",
                         "https://download.pytorch.org/whl/cpu", "torch==2.14.1"], check=True)
         subprocess.run([python, "-m", "pip", "install", "--disable-pip-version-check", "--index-url",
@@ -155,6 +186,9 @@ def main():
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     try:
         main()
     except Exception as error:
