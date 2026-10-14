@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "x11escape.h"
 #ifdef Q_OS_WIN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 
 X11Escape::X11Escape(QObject *parent) : QObject(parent)

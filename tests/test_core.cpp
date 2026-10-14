@@ -135,7 +135,11 @@ void CoreTest::wordAndSentenceSelection()
 void CoreTest::wrappedSentenceOcr()
 {
     QImage image(650,170,QImage::Format_RGB32); image.fill(Qt::white);
-    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(24);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC");
+#ifdef Q_OS_WIN
+    font.setFamily("Arial");
+#endif
+ font.setPixelSize(24);
     painter.setFont(font); painter.setPen(Qt::black);
     painter.drawText(20,50,"This sentence continues");
     painter.drawText(20,85,"on the next line."); painter.end();
@@ -293,7 +297,11 @@ void CoreTest::smallScreenTextOcr()
 {
     QFETCH(int,pixels); QFETCH(bool,dark);
     QImage image(280,35,QImage::Format_RGB32); image.fill(dark ? QColor("#202124") : Qt::white);
-    QPainter painter(&image); QFont font("Noto Sans CJK SC"); font.setPixelSize(pixels);
+    QPainter painter(&image); QFont font("Noto Sans CJK SC");
+#ifdef Q_OS_WIN
+    font.setFamily("Arial");
+#endif
+ font.setPixelSize(pixels);
     painter.setFont(font); painter.setPen(dark ? Qt::white : Qt::black);
     painter.drawText(2,22,"Hello world"); painter.end();
     TesseractOcr ocr; QVERIFY(ocr.init("eng+chi_sim",{}));
@@ -417,7 +425,7 @@ void CoreTest::offlineDictionaryBothDirectionsAndCancellation()
     const QString path = directory.filePath("cedict.u8");
     QFile dictionary(path); QVERIFY(dictionary.open(QIODevice::WriteOnly));
     dictionary.write(QString("# fixture, created for this test\n你好 你好 [ni3 hao3] /hello/hi/\n世界 世界 [shi4 jie4] /world/\n").toUtf8()); dictionary.close();
-    HoverSettings settings; settings.dictionaryPath = path; settings.pythonPath = "python3";
+    HoverSettings settings; settings.dictionaryPath = path; settings.pythonPath = qEnvironmentVariable("HOVER_TEST_PYTHON", QStringLiteral("python3"));
     MockServer server; settings.instance = server.url();
     TranslationService client;
     QSignalSpy success(&client, &TranslationService::translated);
@@ -443,7 +451,7 @@ void CoreTest::missingOfflinePythonFails()
     QSignalSpy failure(&client, &TranslationService::failed);
     QSignalSpy success(&client, &TranslationService::translated);
     client.translate(1, "Hello world", "en", "zh-CN", settings);
-    QVERIFY(failure.wait(3000));
+    QTRY_COMPARE_WITH_TIMEOUT(failure.count(), 1, 3000);
     QCOMPARE(success.count(), 0);
     QVERIFY(failure.last().at(1).toString().contains("offline", Qt::CaseInsensitive));
 }

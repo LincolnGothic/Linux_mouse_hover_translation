@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 name: Windows build and test
 on:
-  push:
-    branches: [main, windows-0.6.0]
-    tags: ['v*']
-  pull_request:
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,6 +28,7 @@ jobs:
       - name: Verify real offline models
         shell: pwsh
         run: |
+          $env:PATH = "${{ steps.msys.outputs.msys2-location }}/ucrt64/bin;$env:PATH"
           ./tools/setup-windows.ps1 -InstallDirectory "$env:RUNNER_TEMP/offline-check"
           & "$env:RUNNER_TEMP/offline-check/data/argos-env/Scripts/python.exe" tests/check_offline_models.py build-windows/hover-translate.exe --python "$env:RUNNER_TEMP/offline-check/data/argos-env/Scripts/python.exe" --models-dir "$env:RUNNER_TEMP/offline-check/data/argos-packages"
           if ($LASTEXITCODE -ne 0) { throw 'Offline model validation failed.' }

@@ -3,7 +3,10 @@
 #ifdef Q_OS_WIN
 #include <QGuiApplication>
 #include <QScreen>
+#include <QPixmap>
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 
 PortalCapture::PortalCapture(QObject *parent) : QObject(parent) {}

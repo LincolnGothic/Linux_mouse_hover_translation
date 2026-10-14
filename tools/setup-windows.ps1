@@ -25,15 +25,15 @@ function Get-SetupDownload([string]$Url, [string]$Destination) {
     Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -Headers @{ 'User-Agent' = 'HoverTranslate/0.6.0' }
     [PSCustomObject]@{ url = $Url; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $Destination).Hash.ToLowerInvariant() }
 }
-if (!(Test-Path -LiteralPath $python)) {
+if (!(Test-Path -LiteralPath $python) -or !(Test-Path -LiteralPath (Join-Path $scripts 'python310.dll')) -or !(Test-Path -LiteralPath (Join-Path $scripts 'python310.zip'))) {
     # Embedded CPython keeps the runtime independent of another Python installation.
     $archive = Join-Path $bootstrap 'python-3.10.11-embed-amd64.zip'
     $records += Get-SetupDownload 'https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip' $archive
     New-Item -ItemType Directory -Force -Path $scripts | Out-Null
     Expand-Archive -LiteralPath $archive -DestinationPath $scripts -Force
-    $pathFile = Join-Path $scripts 'python310._pth'
-    @('python310.zip', '.', 'Lib\site-packages', 'import site') | Set-Content -LiteralPath $pathFile -Encoding ASCII
 }
+$pathFile = Join-Path $scripts 'python310._pth'
+@('python310.zip', '.', 'Lib\site-packages', 'import site') | Set-Content -LiteralPath $pathFile -Encoding ASCII
 & $python -c 'import sys; assert sys.version_info[:2] == (3,10), sys.version; assert sys.maxsize > 2**32'
 if ($LASTEXITCODE -ne 0) { throw 'The private Python runtime did not start.' }
 & $python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('pip') else 1)"

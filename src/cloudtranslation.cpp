@@ -15,7 +15,9 @@
 #include "settings.h"
 #include <QCryptographicHash>
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <wincred.h>
 #else
@@ -176,7 +178,7 @@ QJsonObject CloudStore::credentials(QString *error) const
         || value.value("key").toString().trimmed().isEmpty()
         || value.value("key").toString().size() > 2048
         || !value.value("region").isString()
-        || !QRegularExpression("^[a-z0-9-]*$").match(value.value("region").toString()).hasMatch()
+        || !QRegularExpression("^[a-z0-9-]*\\z").match(value.value("region").toString()).hasMatch()
         || value.value("key").toString().contains(QRegularExpression("[\\r\\n]"))) {
         problem(error, QStringLiteral("Invalid private Azure credentials. Configure them again in Settings.")); return {};
     }
@@ -186,14 +188,15 @@ QJsonObject CloudStore::credentials(QString *error) const
 bool CloudStore::saveCredentials(const QString &key, const QString &region, QString *error) const
 {
     if (key.trimmed().isEmpty() || key.size() > 2048 || key.contains(QRegularExpression("[\\r\\n]"))
-        || !QRegularExpression("^[a-z0-9-]*$").match(region).hasMatch()) {
+        || !QRegularExpression("^[a-z0-9-]*\\z").match(region).hasMatch()) {
         problem(error, QStringLiteral("Enter an Azure resource key and region, for example westus.")); return false;
     }
     if (!privateDirectory(error)) return false;
 #ifdef Q_OS_WIN
     auto data = QJsonDocument(QJsonObject{{"key", key.trimmed()}, {"region", region}})
                     .toJson(QJsonDocument::Compact);
-    if (data.size() > CRED_MAX_CREDENTIAL_BLOB_SIZE) {
+    // Modern Windows permits 2560 bytes; MinGW headers retain the old 512-byte limit.
+    if (data.size() > 5 * 512) {
         problem(error, QStringLiteral("Azure credentials exceed the Windows Credential Manager size limit."));
         return false;
     }
