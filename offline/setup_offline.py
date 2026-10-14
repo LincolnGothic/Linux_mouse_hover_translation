@@ -14,6 +14,10 @@ import tempfile
 import urllib.request
 import zipfile
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 INDEX = "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json"
 DICTIONARY = "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
 USER_AGENT = "HoverTranslate/0.6.0 (+https://github.com/LincolnGothic/Linux_mouse_hover_translation)"

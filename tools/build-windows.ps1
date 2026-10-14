@@ -3,6 +3,7 @@
 param([Parameter(Mandatory=$true)][string]$MsysRoot,
       [string]$BuildDirectory = (Join-Path $PSScriptRoot '..\..\build-windows'))
 $ErrorActionPreference = 'Stop'
+$env:PYTHONIOENCODING = 'utf-8'
 $prefix = Join-Path ([IO.Path]::GetFullPath($MsysRoot)) 'ucrt64'
 $env:PATH = "$prefix\bin;$env:PATH"
 $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
