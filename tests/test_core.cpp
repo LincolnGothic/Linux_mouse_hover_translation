@@ -12,6 +12,12 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest>
+#ifdef Q_OS_WIN
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTextStream>
+#include <QThread>
+#endif
 
 class CoreTest : public QObject {
     Q_OBJECT
@@ -444,6 +450,11 @@ void CoreTest::missingOfflinePythonFails()
 
 static HoverSettings delayedOfflineFixture(QTemporaryDir &directory)
 {
+#ifdef Q_OS_WIN
+    HoverSettings settings; settings.pythonPath = QCoreApplication::applicationFilePath();
+    settings.packagesPath = directory.path(); settings.useDictionary = false;
+    return settings;
+#else
     const QString path = directory.filePath("python-fixture");
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return {};
@@ -460,6 +471,7 @@ static HoverSettings delayedOfflineFixture(QTemporaryDir &directory)
     file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     HoverSettings settings; settings.pythonPath = path; settings.packagesPath = directory.path(); settings.useDictionary = false;
     return settings;
+#endif
 }
 
 void CoreTest::offlineBusyRequestCancellation()
@@ -496,5 +508,32 @@ void CoreTest::offlineTimeoutAndRecovery()
     QCOMPARE(failure.count(),1);
 }
 
+#ifdef Q_OS_WIN
+int main(int argc, char **argv)
+{
+    if (argc > 2 && QString::fromLocal8Bit(argv[2]) == "--worker") {
+        QCoreApplication app(argc, argv);
+        const auto args = app.arguments();
+        const QString marker = args.value(args.indexOf("--packages-dir") + 1) + "/received";
+        QTextStream input(stdin), output(stdout);
+        output << "{\"ready\":true}\n" << Qt::flush;
+        while (!input.atEnd()) {
+            const auto request = QJsonDocument::fromJson(input.readLine().toUtf8()).object();
+            const auto text = request.value("text").toString();
+            if (text == "Slow") {
+                QFile file(marker); if (file.open(QIODevice::WriteOnly)) file.write("received"); file.close();
+                QThread::msleep(300);
+            }
+            const QJsonObject reply{{"id",request.value("id")},{"translation","result " + text}};
+            output << QJsonDocument(reply).toJson(QJsonDocument::Compact) << '\n' << Qt::flush;
+        }
+        return 0;
+    }
+    QApplication app(argc, argv);
+    CoreTest test;
+    return QTest::qExec(&test, argc, argv);
+}
+#else
 QTEST_MAIN(CoreTest)
+#endif
 #include "test_core.moc"

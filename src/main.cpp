@@ -19,6 +19,7 @@
 
 int main(int argc, char *argv[])
 {
+#ifndef Q_OS_WIN
     if (!qEnvironmentVariableIsSet("DISPLAY") && !qEnvironmentVariableIsSet("WAYLAND_DISPLAY")
         && !qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) {
         bool commandLine = false;
@@ -35,16 +36,22 @@ int main(int argc, char *argv[])
             return 2;
         }
     }
+#endif
     QApplication app(argc, argv);
     app.setApplicationName("HoverTranslate");
     app.setOrganizationName("LincolnGothic");
-    app.setApplicationVersion("0.5.0");
+    app.setApplicationVersion("0.6.0");
     app.setDesktopFileName("io.github.LincolnGothic.HoverTranslate");
     app.setWindowIcon(QIcon(":/icons/hover-translate.svg"));
     QNetworkProxyFactory::setUseSystemConfiguration(true);
     QCommandLineParser parser;
+#ifdef Q_OS_WIN
+    parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. Native Windows hover and screen-region capture.\n"
+        "GNU GPL version 3 or later; no warranty. See Settings → About for licenses.");
+#else
     parser.setApplicationDescription("Offline English ↔ Simplified Chinese translation. GNOME Wayland hover with the extension, X11 hover, and screen-region capture.\n"
         "GNU GPL version 3 or later; no warranty. See Settings → About for licenses.");
+#endif
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addOptions({
@@ -206,13 +213,22 @@ int main(int argc, char *argv[])
     QString setupDetail;
     QObject::connect(&dialog, &SettingsDialog::setupRequested, &app, [&] {
         if (installer.state() != QProcess::NotRunning) { dialog.setStatus("Offline setup is already running."); return; }
+        #ifdef Q_OS_WIN
+        const QString helper = offlineAsset("setup-windows.ps1");
+#else
         const QString helper = offlineAsset("setup_offline.py");
+#endif
         if (helper.isEmpty()) { dialog.showProblem("The offline setup helper is missing. Reinstall Hover Translate."); return; }
         QDir().mkpath(offlineDataDirectory());
         installer.setProcessChannelMode(QProcess::MergedChannels);
         setupDetail.clear();
         dialog.setStatus("Downloading the offline runtime and English / Chinese models. This first setup may take several minutes.");
+#ifdef Q_OS_WIN
+        installer.start("powershell.exe", {"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", helper,
+            "-InstallDirectory", QCoreApplication::applicationDirPath()});
+#else
         installer.start("python3", {"-u", helper, "--data-dir", offlineDataDirectory()});
+#endif
     });
     QObject::connect(&installer, &QProcess::readyReadStandardOutput, &dialog, [&] {
         setupDetail = (setupDetail + QString::fromUtf8(installer.readAllStandardOutput())).right(8000);
@@ -220,7 +236,13 @@ int main(int argc, char *argv[])
         if (!lines.isEmpty()) dialog.setStatus(lines.last().left(500));
     });
     QObject::connect(&installer, &QProcess::errorOccurred, &dialog, [&](QProcess::ProcessError error) {
-        if (error == QProcess::FailedToStart) dialog.setStatus("Could not start setup. Install python3 and python3-venv.");
+        if (error == QProcess::FailedToStart) {
+#ifdef Q_OS_WIN
+            dialog.setStatus("Could not start offline setup. Check the bundled setup script and PowerShell.");
+#else
+            dialog.setStatus("Could not start setup. Install python3 and python3-venv.");
+#endif
+        }
     });
     QObject::connect(&installer, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), &dialog, [&](int code, QProcess::ExitStatus status) {
         dialog.setStatus(status == QProcess::NormalExit && code == 0

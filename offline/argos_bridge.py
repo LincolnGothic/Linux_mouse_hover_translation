@@ -122,6 +122,16 @@ def main():
     parser.add_argument("--packages-dir", required=True)
     parser.add_argument("--dictionary", default="")
     args = parser.parse_args()
+    if sys.platform == "win32":
+        # Argos creates XDG folders on import; keep every one beside our models.
+        data = Path(args.packages_dir).resolve().parent
+        os.environ["XDG_DATA_HOME"] = str(data)
+        os.environ["XDG_CONFIG_HOME"] = str(data / "config")
+        os.environ["XDG_CACHE_HOME"] = str(data / "cache")
+        os.environ["STANZA_RESOURCES_DIR"] = str(data / "stanza")
+        sys.stdin.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     os.environ["ARGOS_PACKAGES_DIR"] = args.packages_dir
     os.environ["ARGOS_DEVICE_TYPE"] = "cpu"
     os.environ["ARGOS_MODEL_PROVIDER"] = "OPENNMT"

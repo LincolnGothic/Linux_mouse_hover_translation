@@ -10,7 +10,11 @@
 
 QString offlineDataDirectory()
 {
+#ifdef Q_OS_WIN
+    return QCoreApplication::applicationDirPath() + "/data";
+#else
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/hover-translate";
+#endif
 }
 
 QString offlineAsset(const QString &name)
@@ -26,8 +30,13 @@ QString offlineAsset(const QString &name)
 QString offlinePython(const HoverSettings &settings)
 {
     if (!settings.pythonPath.isEmpty()) return settings.pythonPath;
+#ifdef Q_OS_WIN
+    const QString managed = offlineDataDirectory() + "/argos-env/Scripts/python.exe";
+    return QFileInfo::exists(managed) ? managed : QStringLiteral("python.exe");
+#else
     const QString managed = offlineDataDirectory() + "/argos-env/bin/python";
     return QFileInfo::exists(managed) ? managed : QStringLiteral("python3");
+#endif
 }
 
 QString translationCacheKey(const HoverSettings &settings, const QString &text, const QString &source)
@@ -40,7 +49,11 @@ QString translationCacheKey(const HoverSettings &settings, const QString &text, 
 
 SettingsStore::SettingsStore(QString fileName)
     : m_fileName(fileName.isEmpty()
+#ifdef Q_OS_WIN
+          ? offlineDataDirectory() + "/settings.ini"
+#else
           ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini"
+#endif
           : std::move(fileName)) {}
 
 bool SettingsStore::validInstance(const QString &instance)
@@ -90,6 +103,13 @@ HoverSettings SettingsStore::load() const
     settings.dwellMs = file.value("hover/dwellMs", settings.dwellMs).toInt();
     settings.enabled = file.value("hover/enabled", settings.enabled).toBool();
     settings.tessdataPath = file.value("ocr/tessdataPath").toString();
+#ifdef Q_OS_WIN
+    if (settings.tessdataPath.isEmpty()) {
+        const QString bundled = QCoreApplication::applicationDirPath() + "/tessdata";
+        if (QFileInfo::exists(bundled + "/eng.traineddata") && QFileInfo::exists(bundled + "/chi_sim.traineddata"))
+            settings.tessdataPath = bundled;
+    }
+#endif
     // Corrupt or hand-edited files must not enable capture with invalid settings.
     if (!validate(settings)) {
         settings.enabled = false;

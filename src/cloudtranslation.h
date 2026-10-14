@@ -9,7 +9,8 @@ QString azureLanguage(const QString &language);
 QString azureHttpError(int status);
 QString parseAzureResponse(const QByteArray &body, const QString &target, QString *error);
 
-// Separate from INI settings. Credentials and usage never contain translation text.
+// Separate from INI settings. Windows credentials use Credential Manager; Linux uses owner-only files.
+// Credentials and usage never contain translation text.
 class CloudStore {
 public:
     explicit CloudStore(QString directory = {});

@@ -11,12 +11,29 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+#ifdef Q_OS_WIN
+#include "settings.h"
+#include <QCryptographicHash>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <wincred.h>
+#else
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 namespace {
 void problem(QString *error, const QString &message) { if (error) *error = message; }
+#ifdef Q_OS_WIN
+QString credentialTarget(const QString &directory)
+{
+    const auto path = QDir::cleanPath(QFileInfo(directory).absoluteFilePath()).toCaseFolded();
+    return "HoverTranslate/Azure/" + QString::fromLatin1(
+        QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+#else
 bool ownedPrivate(const QString &path, bool directory)
 {
     struct stat info {};
@@ -24,12 +41,15 @@ bool ownedPrivate(const QString &path, bool directory)
     return info.st_uid == ::getuid() && !(info.st_mode & 0077)
         && (directory ? S_ISDIR(info.st_mode) : S_ISREG(info.st_mode));
 }
+#endif
 bool writePrivate(const QString &path, const QJsonObject &value)
 {
     QSaveFile file(path);
     file.setDirectWriteFallback(false);
-    if (!file.open(QIODevice::WriteOnly)
-        || !file.setPermissions(QFile::ReadOwner | QFile::WriteOwner)) return false;
+    if (!file.open(QIODevice::WriteOnly)) return false;
+#ifndef Q_OS_WIN
+    if (!file.setPermissions(QFile::ReadOwner | QFile::WriteOwner)) return false;
+#endif
     const auto data = QJsonDocument(value).toJson(QJsonDocument::Compact);
     return file.write(data) == data.size() && file.commit();
 }
@@ -85,12 +105,23 @@ QString parseAzureResponse(const QByteArray &body, const QString &target, QStrin
 }
 
 CloudStore::CloudStore(QString directory) : m_directory(directory.isEmpty()
+#ifdef Q_OS_WIN
+    ? offlineDataDirectory() + "/cloud"
+#else
     ? QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/hover-translate/cloud"
+#endif
     : std::move(directory)) {}
 
 bool CloudStore::privateDirectory(QString *error) const
 {
     problem(error, {});
+#ifdef Q_OS_WIN
+    if (!QDir().mkpath(m_directory) || !QFileInfo(m_directory).isDir()
+        || QFileInfo(m_directory).isSymLink()) {
+        problem(error, QStringLiteral("Cannot create the cloud directory; symbolic links are refused."));
+        return false;
+    }
+#else
     if (!QFileInfo::exists(m_directory)) {
         if (!QDir().mkpath(QFileInfo(m_directory).absolutePath())
             || ::mkdir(QFile::encodeName(m_directory).constData(), 0700) != 0) {
@@ -101,12 +132,25 @@ bool CloudStore::privateDirectory(QString *error) const
         problem(error, QStringLiteral("Cloud directory needs owner-only permissions (chmod 700); symbolic links are refused."));
         return false;
     }
+#endif
     return true;
 }
 
 QJsonObject CloudStore::credentials(QString *error) const
 {
     problem(error, {});
+#ifdef Q_OS_WIN
+    const auto target = credentialTarget(m_directory).toStdWString();
+    PCREDENTIALW credential = nullptr;
+    if (!CredReadW(target.c_str(), CRED_TYPE_GENERIC, 0, &credential)) {
+        if (GetLastError() != ERROR_NOT_FOUND)
+            problem(error, QStringLiteral("Cannot read Azure credentials from Windows Credential Manager."));
+        return {};
+    }
+    const QByteArray data(reinterpret_cast<const char *>(credential->CredentialBlob),
+                          int(credential->CredentialBlobSize));
+    CredFree(credential);
+#else
     if (!QFileInfo::exists(m_directory)) return {};
     if (!privateDirectory(error)) return {};
     const auto path = m_directory + "/azure-credentials.json";
@@ -122,11 +166,16 @@ QJsonObject CloudStore::credentials(QString *error) const
         || info.st_uid != ::getuid() || (info.st_mode & 0077)) {
         problem(error, QStringLiteral("Azure credentials need owner-only permissions (chmod 600).")); return {};
     }
+    const auto data = file.read(8192);
+#endif
     QJsonParseError parse;
-    const auto document = QJsonDocument::fromJson(file.read(8192), &parse);
+    const auto document = QJsonDocument::fromJson(data, &parse);
     const auto value = document.object();
     if (parse.error != QJsonParseError::NoError || !document.isObject()
         || !value.value("key").isString()
+        || value.value("key").toString().trimmed().isEmpty()
+        || value.value("key").toString().size() > 2048
+        || !value.value("region").isString()
         || !QRegularExpression("^[a-z0-9-]*$").match(value.value("region").toString()).hasMatch()
         || value.value("key").toString().contains(QRegularExpression("[\\r\\n]"))) {
         problem(error, QStringLiteral("Invalid private Azure credentials. Configure them again in Settings.")); return {};
@@ -141,6 +190,25 @@ bool CloudStore::saveCredentials(const QString &key, const QString &region, QStr
         problem(error, QStringLiteral("Enter an Azure resource key and region, for example westus.")); return false;
     }
     if (!privateDirectory(error)) return false;
+#ifdef Q_OS_WIN
+    auto data = QJsonDocument(QJsonObject{{"key", key.trimmed()}, {"region", region}})
+                    .toJson(QJsonDocument::Compact);
+    if (data.size() > CRED_MAX_CREDENTIAL_BLOB_SIZE) {
+        problem(error, QStringLiteral("Azure credentials exceed the Windows Credential Manager size limit."));
+        return false;
+    }
+    auto target = credentialTarget(m_directory).toStdWString();
+    CREDENTIALW credential {};
+    credential.Type = CRED_TYPE_GENERIC;
+    credential.TargetName = target.data();
+    credential.CredentialBlobSize = DWORD(data.size());
+    credential.CredentialBlob = reinterpret_cast<LPBYTE>(data.data());
+    credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
+    if (!CredWriteW(&credential, 0)) {
+        problem(error, QStringLiteral("Cannot save Azure credentials in Windows Credential Manager."));
+        return false;
+    }
+#else
     const auto path = m_directory + "/azure-credentials.json";
     if ((QFileInfo::exists(path) || QFileInfo(path).isSymLink()) && !ownedPrivate(path, false)) {
         problem(error, QStringLiteral("Azure credentials need owner-only permissions (chmod 600); symbolic links are refused.")); return false;
@@ -148,6 +216,7 @@ bool CloudStore::saveCredentials(const QString &key, const QString &region, QStr
     if (!writePrivate(path, {{"key", key.trimmed()}, {"region", region}})) {
         problem(error, QStringLiteral("Cannot save private Azure credentials. Check directory permissions.")); return false;
     }
+#endif
     return true;
 }
 

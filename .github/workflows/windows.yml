@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Windows build and test
+on:
+  push:
+    branches: [main, windows-0.6.0]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: msys
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-scxml
+            mingw-w64-ucrt-x86_64-qt6-svg mingw-w64-ucrt-x86_64-tesseract-ocr
+            mingw-w64-ucrt-x86_64-tesseract-data-eng mingw-w64-ucrt-x86_64-tesseract-data-chi_sim
+      - name: Build and test native Windows integration
+        shell: pwsh
+        run: ./tools/build-windows.ps1 -MsysRoot '${{ steps.msys.outputs.msys2-location }}' -BuildDirectory build-windows
+      - name: Verify real offline models
+        shell: pwsh
+        run: |
+          ./tools/setup-windows.ps1 -InstallDirectory "$env:RUNNER_TEMP/offline-check"
+          & "$env:RUNNER_TEMP/offline-check/data/argos-env/Scripts/python.exe" tests/check_offline_models.py build-windows/hover-translate.exe --python "$env:RUNNER_TEMP/offline-check/data/argos-env/Scripts/python.exe" --models-dir "$env:RUNNER_TEMP/offline-check/data/argos-packages"
+          if ($LASTEXITCODE -ne 0) { throw 'Offline model validation failed.' }
+      - name: Bundle Windows binary and runtime notices
+        shell: pwsh
+        run: |
+          python tools/package-windows.py --source . --build build-windows --prefix '${{ steps.msys.outputs.msys2-location }}/ucrt64' --output release-windows
+          if ($LASTEXITCODE -ne 0) { throw 'Windows packaging failed.' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hover-translate-windows-${{ github.sha }}
+          path: release-windows/*.zip
+          if-no-files-found: error
+          retention-days: 14

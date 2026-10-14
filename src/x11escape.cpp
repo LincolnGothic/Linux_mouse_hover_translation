@@ -1,6 +1,31 @@
 // SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "x11escape.h"
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+
+X11Escape::X11Escape(QObject *parent) : QObject(parent)
+{
+    m_poll.setInterval(15);
+    connect(&m_poll, &QTimer::timeout, this, [this] {
+        const bool down = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+        const bool pressedNow = down && !m_wasDown;
+        m_wasDown = down;
+        if (pressedNow && m_grabbed) emit pressed();
+    });
+}
+
+X11Escape::~X11Escape() { release(); }
+
+bool X11Escape::grab()
+{
+    m_wasDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    m_grabbed = true; m_poll.start(); return true;
+}
+
+void X11Escape::release() { m_poll.stop(); m_grabbed = false; }
+#else
 #include <cstdlib>
 
 X11Escape::X11Escape(QObject *parent) : QObject(parent)
@@ -68,3 +93,5 @@ void X11Escape::release()
     xcb_flush(m_connection);
     m_grabbed = false;
 }
+
+#endif

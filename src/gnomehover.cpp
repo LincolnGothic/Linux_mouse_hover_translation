@@ -1,6 +1,16 @@
 // SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "gnomehover.h"
+#ifdef Q_OS_WIN
+GnomeHover::GnomeHover(QObject *parent) : QObject(parent) {}
+GnomeHover::~GnomeHover() = default;
+bool GnomeHover::available() { return false; }
+bool GnomeHover::configure(const HoverSettings &, QString *error)
+{
+    if (error) *error = tr("GNOME hover is available only on Linux.");
+    return false;
+}
+#else
 #include <QDBusConnectionInterface>
 #include <QDBusMetaType>
 #include <QDBusMessage>
@@ -185,3 +195,5 @@ void GnomeHover::result(const QString &source, const QString &text, bool error)
     emit statusChanged(error ? text : tr("Ready — move the pointer to translate more text."));
     emit popupShown(source, text);
 }
+
+#endif

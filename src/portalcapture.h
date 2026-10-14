@@ -4,7 +4,9 @@
 #include <QImage>
 #include <QTimer>
 #include <QVariantMap>
+#ifndef Q_OS_WIN
 #include <QDBusMessage>
+#endif
 
 class PortalCapture : public QObject {
     Q_OBJECT
@@ -17,9 +19,15 @@ signals:
     void captured(const QImage &image);
     void failed(const QString &message);
     void cancelled();
+#ifndef Q_OS_WIN
 private slots:
     void response(uint code, const QVariantMap &results, const QDBusMessage &message);
+#endif
 private:
+#ifdef Q_OS_WIN
+    quint64 m_generation = 0;
+#else
     QString m_path;
+#endif
     QTimer m_timeout;
 };

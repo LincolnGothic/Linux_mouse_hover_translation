@@ -155,7 +155,11 @@ void ScreenReader::capture()
 {
     ++m_generation; m_translator.cancel(); m_ocr.cancel(); m_capture.cancel();
     if (m_ocr.isBusy()) { m_status->setText(tr("The previous OCR job is finishing. Try again in a moment.")); return; }
+#ifdef Q_OS_WIN
+    m_status->setText(tr("Drag around text in the primary screen preview."));
+#else
     m_status->setText(tr("Choose a screenshot in the desktop dialog, then drag around the text."));
+#endif
     hide();
     m_captureDelay.start(180);
 }
@@ -168,7 +172,12 @@ void ScreenReader::readImage(const QImage &image)
     show();
     if (crop.isNull()) { m_status->setText(tr("Select a region containing text.")); return; }
     if (!m_ocr.init("eng+chi_sim", m_settings.tessdataPath.toUtf8())) {
-        m_status->setText(tr("Install tesseract-ocr-eng and tesseract-ocr-chi-sim, then try again.")); return;
+#ifdef Q_OS_WIN
+        m_status->setText(tr("The English and Simplified Chinese OCR models are missing. Reinstall the Windows package or choose their folder in Settings."));
+#else
+        m_status->setText(tr("Install tesseract-ocr-eng and tesseract-ocr-chi-sim, then try again."));
+#endif
+        return;
     }
     m_status->setText(tr("Reading text locally…"));
     m_ocr.recognize(crop, 96);

@@ -107,8 +107,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     paragraph(tr("Hold Shift for Word, or Ctrl+Shift for Sentence. Release to return to your saved mode."), hoverLayout);
     auto *gnomeSetup = new QPushButton(tr("Set up GNOME hover"), this);
     gnomeSetup->setObjectName("gnomeSetupButton");
+#ifdef Q_OS_WIN
+    gnomeSetup->hide();
+    paragraph(tr("Automatic hover reads text locally from the monitor under the pointer. It pauses while your Windows session is locked."), hoverLayout)->setObjectName("windowsHoverLabel");
+#else
     hoverLayout->addWidget(gnomeSetup, 0, Qt::AlignLeft);
     paragraph(tr("Automatic hover works on GNOME 50 with the extension, or X11. After installing a new extension, sign out and back in."), hoverLayout);
+#endif
     hoverLayout->addStretch();
 
     auto *translationForm = form(translationLayout);
@@ -231,8 +236,12 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.5.0</h2>"
+        browser->setHtml(tr("<h2>Hover Translate 0.6.0</h2>"
+#ifdef Q_OS_WIN
+            "<p>An open-source Windows hover translator based on Crow Translate 4.1.0.</p>"
+#else
             "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
+#endif
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"
             "<p>Licensed under GNU GPL version 3 or later. There is no warranty."
