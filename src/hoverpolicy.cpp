@@ -17,6 +17,15 @@ void HoverPolicy::reset()
     ++m_generation;
     m_initialized = false;
     m_attempted = false;
+    m_retries = 0;
+}
+
+bool HoverPolicy::retry(qint64 nowMs)
+{
+    if (!m_initialized || m_blocked || !m_attempted || m_retries >= 1) return false;
+    ++m_retries; ++m_generation;
+    m_attempted = false; m_since = nowMs;
+    return true;
 }
 
 HoverPolicy::Action HoverPolicy::update(QPoint position, bool blocked, qint64 nowMs)
@@ -27,6 +36,7 @@ HoverPolicy::Action HoverPolicy::update(QPoint position, bool blocked, qint64 no
         m_since = nowMs;
         m_blocked = blocked;
         m_attempted = false;
+        m_retries = 0;
         ++m_generation;
         return Invalidated;
     }
@@ -126,6 +136,25 @@ QString HoverPolicy::textAt(const QVector<OcrLine> &input, QPoint point, const Q
 {
     if (mode == "line") return lineAt(input, point, minimumConfidence);
     const auto lines = textRuns(input);
+    if (mode == "word") {
+        // A noisy neighbour can lower a whole line's average confidence even
+        // when the pointed word is clear. Judge the word by its own confidence.
+        const OcrWord *hit = nullptr;
+        int best = std::numeric_limits<int>::max();
+        for (const auto &line : lines) for (const auto &word : line.words) {
+            if (word.confidence < minimumConfidence || word.text.trimmed().isEmpty()
+                || !word.bounds.adjusted(-2, -3, 2, 3).contains(point)) continue;
+            const int dx = qMax(0, qMax(word.bounds.left() - point.x(), point.x() - word.bounds.right()));
+            const int dy = qMax(0, qMax(word.bounds.top() - point.y(), point.y() - word.bounds.bottom()));
+            const int distance = dx * dx + dy * dy;
+            if (distance < best) { hit = &word; best = distance; }
+        }
+        if (!hit) return {};
+        QString word = hit->text;
+        while (!word.isEmpty() && !word.front().isLetterOrNumber()) word.remove(0, 1);
+        while (!word.isEmpty() && !word.back().isLetterOrNumber()) word.chop(1);
+        return word;
+    }
     int anchor = -1, distance = std::numeric_limits<int>::max();
     for (int i = 0; i < lines.size(); ++i) {
         const auto &line = lines[i];
@@ -141,13 +170,6 @@ QString HoverPolicy::textAt(const QVector<OcrLine> &input, QPoint point, const Q
         if (word.confidence < minimumConfidence || !word.bounds.adjusted(-1, -2, 1, 2).contains(point)) continue;
         if (!hit || word.bounds.contains(point)) hit = &word;
         if (word.bounds.contains(point)) break;
-    }
-    if (mode == "word") {
-        if (!hit) return {};
-        QString word = hit->text;
-        while (!word.isEmpty() && !word.front().isLetterOrNumber()) word.remove(0, 1);
-        while (!word.isEmpty() && !word.back().isLetterOrNumber()) word.chop(1);
-        return word;
     }
     if (mode != "sentence") return {};
     const auto fallback = [&]() { return line.text.size() <= 300 ? line.text.simplified() : QString(); };

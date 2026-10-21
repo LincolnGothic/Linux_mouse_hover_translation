@@ -15,11 +15,14 @@
 #include <QtTest>
 
 class TargetWindow : public QWidget {
+public:
+    bool englishVisible = true;
+private:
     void paintEvent(QPaintEvent *) override {
         QPainter painter(this); painter.fillRect(rect(),Qt::white);
         QFont font("Noto Sans CJK SC"); font.setPixelSize(26);
         painter.setFont(font); painter.setPen(Qt::black);
-        painter.drawText(80,350,"Hello world");
+        if (englishVisible) painter.drawText(80,350,"Hello world");
         painter.drawText(80,500,"你好世界");
         painter.drawText(80,650,"This sentence continues");
         painter.drawText(80,685,"on the next line.");
@@ -54,7 +57,8 @@ private slots:
         session = created.value().path();
         auto started = input("Start");
         QVERIFY2(started.type()!=QDBusMessage::ErrorMessage,qPrintable(started.errorMessage()));
-        TargetWindow window; window.setWindowTitle("Native Wayland OCR target"); window.showFullScreen();
+        TargetWindow window; window.englishVisible = false;
+        window.setWindowTitle("Native Wayland OCR target"); window.showFullScreen();
         QVERIFY(QTest::qWaitForWindowExposed(&window));
         // Close GNOME's startup overview with actual compositor input.
         QVERIFY(input("NotifyKeyboardKeysym",{uint(0xff1b),true}).type()!=QDBusMessage::ErrorMessage);
@@ -67,6 +71,14 @@ private slots:
         settings.dictionaryPath = dictionary.fileName(); settings.pythonPath = "python3";
         TesseractOcr ocr; TranslationService translator;
         HoverController hover(&ocr,&translator); QSignalSpy popup(&hover,&HoverController::popupShown);
+        int reads = 0;
+        connect(&hover, &HoverController::statusChanged, this, [&](const QString &message) {
+            if (!message.startsWith("Reading text")) return;
+            ++reads;
+            // The captured image is blank. A page finishes rendering while
+            // OCR runs; extension v5 must recapture without pointer movement.
+            window.englishVisible = true; window.repaint();
+        });
         QVERIFY(HoverController::platformProblem().isEmpty());
         QVERIFY(hover.configure(settings));
         QVERIFY(input("NotifyPointerMotionRelative",{-10000.0,-10000.0}).type()!=QDBusMessage::ErrorMessage);
@@ -74,6 +86,7 @@ private slots:
         auto moved = input("NotifyPointerMotionRelative",{130.0,340.0});
         QVERIFY2(moved.type()!=QDBusMessage::ErrorMessage,qPrintable(moved.errorMessage()));
         QTRY_VERIFY_WITH_TIMEOUT(popup.count()>0,12000);
+        QCOMPARE(reads, 2);
         QCOMPARE(popup.last()[0].toString(),QString("Hello world"));
         QVERIFY(popup.last()[1].toString().contains("你好世界"));
         QTRY_VERIFY_WITH_TIMEOUT(status().value(2).toBool(),3000);
@@ -127,7 +140,7 @@ private slots:
         input("NotifyPointerMotionRelative",{0.0,100.0});
         QTRY_VERIFY(!status().value(2).toBool());
         // Changing modes uses the actual compositor crop, OCR word geometry
-        // and backend settings through the version 4 extension protocol.
+        // and backend settings through the extension protocol.
         // The screenshot's two distant headings stay separate in Line mode.
         QVERIFY(hover.configure(settings)); popup.clear();
         input("NotifyPointerMotionRelative",{0.0,-230.0});

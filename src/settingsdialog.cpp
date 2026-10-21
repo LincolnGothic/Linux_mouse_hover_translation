@@ -3,6 +3,7 @@
 #include "settingsdialog.h"
 #include "hovercontroller.h"
 #include "cloudtranslation.h"
+#include "appearance.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -10,6 +11,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QInputDialog>
+#include <QIcon>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
@@ -22,17 +24,26 @@
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 {
-    setWindowTitle(tr("Hover Translate — Settings"));
+    setWindowTitle(tr("Settings"));
     setMinimumSize(400, 380);
     const auto available = QGuiApplication::primaryScreen()->availableGeometry();
     resize(qMin(640, available.width() - 40), qMin(700, available.height() - 80));
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(18, 16, 18, 16);
     outer->setSpacing(12);
-    auto *title = new QLabel(tr("Settings"), this);
-    title->setStyleSheet("font-size: 23px; font-weight: 600;");
-    outer->addWidget(title);
-    auto *description = new QLabel(tr("English and Simplified Chinese. Choose how you translate."), this);
+    auto *header = new QHBoxLayout;
+    auto *icon = new QLabel(this);
+    icon->setPixmap(QIcon(":/icons/hover-translate.svg").pixmap(40, 40));
+    header->addWidget(icon);
+    auto *title = new QLabel(tr("Hover Translate"), this);
+    title->setObjectName("appTitle");
+    header->addWidget(title, 1);
+    auto *badge = new QLabel(tr("EN ↔ 简中"), this);
+    badge->setObjectName("platformBadge");
+    header->addWidget(badge);
+    outer->addLayout(header);
+    auto *description = new QLabel(tr("Point at a word. Read it in your language."), this);
+    description->setProperty("role", "muted");
     description->setWordWrap(true);
     outer->addWidget(description);
     auto *tabs = new QTabWidget(this);
@@ -45,6 +56,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         scroll->setFrameShape(QFrame::NoFrame);
         auto *content = new QWidget(scroll);
+        content->setObjectName("settingsPage");
         auto *layout = new QVBoxLayout(content);
         layout->setContentsMargins(16, 16, 16, 16);
         layout->setSpacing(12);
@@ -58,10 +70,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     auto *advancedLayout = page(tr("Advanced"), "advancedSettingsScroll");
     auto paragraph = [](const QString &text, QVBoxLayout *layout) {
         auto *label = new QLabel(text);
+        label->setTextFormat(Qt::PlainText);
+        label->setProperty("role", "muted");
         label->setWordWrap(true);
         layout->addWidget(label);
         return label;
     };
+    paragraph(tr("Point & translate"), hoverLayout)->setProperty("role", "section");
     auto form = [](QVBoxLayout *layout) {
         auto *rows = new QFormLayout;
         rows->setRowWrapPolicy(QFormLayout::WrapAllRows);
@@ -116,9 +131,11 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 #endif
     hoverLayout->addStretch();
 
+    paragraph(tr("Choose your translation engine"), translationLayout)->setProperty("role", "section");
     auto *translationForm = form(translationLayout);
     m_provider = combo("providerComboBox");
     m_provider->addItem(tr("Offline — Argos / dictionary"), "offline");
+    m_provider->addItem(tr("Google Translate — free, experimental"), "google");
     m_provider->addItem(tr("Online — Mozhi"), "mozhi");
     m_provider->addItem(tr("Online — Microsoft Azure Translator"), "azure");
     translationForm->addRow(tr("Translation engine"), m_provider);
@@ -155,7 +172,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     translationLayout->addWidget(test, 0, Qt::AlignLeft);
     translationLayout->addStretch();
 
-    paragraph(tr("Optional paths"), advancedLayout)->setStyleSheet("font-weight: 600;");
+    paragraph(tr("Optional paths"), advancedLayout)->setProperty("role", "section");
     paragraph(tr("Leave these empty to use the installed OCR languages and downloaded offline resources."), advancedLayout);
     auto *advancedForm = form(advancedLayout);
     m_tessdata = new QLineEdit(this);
@@ -176,6 +193,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         const bool local = m_provider->currentData().toString() == "offline";
         const bool mozhi = m_provider->currentData().toString() == "mozhi";
         const bool azure = m_provider->currentData().toString() == "azure";
+        const bool google = m_provider->currentData().toString() == "google";
         m_server->setEnabled(mozhi);
         translationForm->setRowVisible(m_server, mozhi);
         for (auto *edit : {m_python, m_packages, m_dictionary}) {
@@ -191,6 +209,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         m_privacy->setText(local
             ? tr("Offline mode keeps OCR and translation on this computer. Download the free models once; no API key is needed. CC-CEDICT supplies Chinese word definitions and limited English reverse lookup.")
             : azure ? tr("Azure sends recognized/source text to Microsoft Azure Translator. Screenshots stay on this computer. Your own credentials are required; no shared key is bundled. Microsoft quotas and pricing apply.")
+            : google ? tr("Google Translate sends recognized/source text directly to Google. Screenshots stay on this computer. No API key is needed. This free experimental service may change, block requests or rate-limit. It never switches providers automatically.")
             : tr("Online mode sends recognized text to your chosen Mozhi server. Screenshots stay on this computer. Public servers may be unavailable."));
     };
     connect(m_provider, &QComboBox::currentIndexChanged, this, updateProvider);
@@ -214,6 +233,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Close, this);
     buttons->setObjectName("settingsButtonBox");
     buttons->button(QDialogButtonBox::Apply)->setObjectName("applyButton");
+    buttons->button(QDialogButtonBox::Apply)->setProperty("primary", true);
     buttons->button(QDialogButtonBox::Close)->setObjectName("closeButton");
     auto *about = buttons->addButton(tr("About"), QDialogButtonBox::ActionRole);
     about->setToolTip(tr("About Hover Translate and its licenses"));
@@ -236,17 +256,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
         auto *aboutLayout = new QVBoxLayout(&dialog);
         auto *browser = new QTextBrowser(&dialog);
         browser->setOpenExternalLinks(true);
-        browser->setHtml(tr("<h2>Hover Translate 0.6.0</h2>"
-#ifdef Q_OS_WIN
-            "<p>An open-source Windows hover translator based on Crow Translate 4.1.0.</p>"
-#else
-            "<p>An open-source Linux hover translator based on Crow Translate 4.1.0.</p>"
-#endif
+        browser->setHtml(tr("<h2>Hover Translate 0.7.0</h2>"
+            "<p>An open-source hover translator for Linux and Windows, based on Crow Translate 4.1.0.</p>"
             "<p>Copyright © 2026 Linux_mouse_hover_translation contributors.<br>"
             "Crow components: © 2018 Hennadii Chernyshchyk, © 2022 Volk Milit, and © 2026 Mauritius Clemens.</p>"
             "<p>Licensed under GNU GPL version 3 or later. There is no warranty."
             " You may redistribute and modify this program under that license.</p>"
-            "<p><a href='https://github.com/LincolnGothic/Linux_mouse_hover_translation'>Source code and build instructions</a>"
+            "<p><a href='https://github.com/LincolnGothic/hover-translate'>Source code and build instructions</a>"
             " · <a href='https://github.com/KDE/crow-translate/tree/v4.1.0'>Crow upstream</a></p>"
             "<p>Offline engine: Argos Translate (MIT), with models downloaded separately. "
             "Optional CC-CEDICT data retains its attribution/share-alike license.</p>"));
@@ -262,6 +278,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     connect(reader, &QPushButton::clicked, this, [this] { emit readerRequested(settings()); });
     connect(setup, &QPushButton::clicked, this, &SettingsDialog::setupRequested);
     connect(gnomeSetup, &QPushButton::clicked, this, &SettingsDialog::gnomeSetupRequested);
+    applyAppStyle(this);
 }
 
 void SettingsDialog::setSettings(const HoverSettings &settings)
@@ -305,7 +322,7 @@ void SettingsDialog::updateCloudStatus()
     const bool azure = m_provider->currentData().toString() == "azure";
     const auto credentials = azure ? CloudStore().credentials(&error) : QJsonObject();
     m_azureStatus->setText((error.isEmpty()
-        ? !azure ? tr("Mozhi cloud usage")
+        ? !azure ? (m_provider->currentData().toString() == "google" ? tr("Google Translate usage") : tr("Mozhi cloud usage"))
             : credentials.value("key").toString().isEmpty() ? tr("Credentials not configured") : tr("Credentials configured")
         : error) + '\n' + CloudStore().usageLabel());
 }

@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "onlinetranslator.h"
 #include "cloudtranslation.h"
+#include "googletranslation.h"
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 
@@ -35,6 +36,8 @@ private:
                         const QString &target);
     void translateMozhi(quint64 request, const QString &text, const QString &source,
                         const QString &target, const QString &instance);
+    void translateGoogle(quint64 request, const QString &text, const QString &source,
+                         const QString &target);
     QNetworkAccessManager *m_network;
     QPointer<QNetworkReply> m_azureReply;
     CloudStore m_cloud;
@@ -42,6 +45,7 @@ private:
     void sendOfflineRequest();
     void stopWorker();
     QPointer<OnlineTranslator> m_translator;
+    QPointer<GoogleTranslation> m_google;
     QProcess m_worker;
     QByteArray m_output, m_pending;
     QString m_workerKey;

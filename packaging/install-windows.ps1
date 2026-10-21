@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [CmdletBinding()]
-param([string]$InstallDirectory = 'D:\software\HoverTranslate\app-0.6.0',
+param([string]$InstallDirectory = 'D:\software\HoverTranslate\app-0.7.0',
       [switch]$SkipOfflineSetup)
 $ErrorActionPreference = 'Stop'
 $source=[IO.Path]::GetFullPath($PSScriptRoot)
@@ -16,13 +16,13 @@ if (!$SkipOfflineSetup) {
 }
 $desktop=[Environment]::GetFolderPath('Desktop')
 $shortcutPath=Join-Path $desktop 'Hover Translate.lnk'
-if (Test-Path -LiteralPath $shortcutPath) { $shortcutPath=Join-Path $desktop 'Hover Translate 0.6.0.lnk' }
+if (Test-Path -LiteralPath $shortcutPath) { $shortcutPath=Join-Path $desktop 'Hover Translate 0.7.0.lnk' }
 if (Test-Path -LiteralPath $shortcutPath) { throw "Shortcut already exists: $shortcutPath" }
 $shell=New-Object -ComObject WScript.Shell
 $shortcut=$shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath=Join-Path $target 'hover-translate.exe'
 $shortcut.WorkingDirectory=$target
-$shortcut.Description='Offline English and Chinese hover translation'
+$shortcut.Description='English and Chinese hover translation for Windows'
 $shortcut.Save()
 Write-Output "Installed Hover Translate in $target"
 Write-Output "Launch shortcut: $shortcutPath"

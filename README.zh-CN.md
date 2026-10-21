@@ -1,8 +1,33 @@
 # Hover Translate
 
+**Linux 和 Windows 统一使用 Hover Translate 名称，仓库名改为 `hover-translate`。**
+当前源码 **0.7.0** 新增免费的实验性 Google 翻译、适应明暗主题的设置和弹窗，
+并修复悬停偶尔没有结果的问题。已保存的引擎、模型及设置保留，默认仍为 Offline。
+最新打包版本仍为 **0.6.0**；0.7.0 的安装包发布前请从当前源码构建。
+
+## Google 翻译（免费、实验性）
+
+选择 **Translation → Google Translate — free, experimental**，点击 **Apply**
+和 **Test translation**。无需 API 密钥、Mozhi 服务器或 Argos 翻译模型；OCR
+仍需要本地英中 Tesseract 数据。悬停、区域截图、输入文本和命令行均可使用。
+只有识别出的文字/输入原文通过 HTTPS 发给 Google，**截图不上传**。
+文字出现在请求 URL 中。此无密钥通道属于非官方实验功能，不是 Google Cloud
+付费 API，可能限流、拒绝访问或发生变化；出错后不会自动改用其他引擎。
+长文本按 Unicode 字符安全分段，取消操作会停止后续分段及重试。使用量只保存本月
+请求次数及字符数，不保存原文。命令行示例：
+
+```bash
+hover-translate --provider google --translate 'Hello world' --target zh-CN
+```
+
+升级到 0.7.0 后，GNOME Wayland 用户需点击 **Hover → Set up GNOME hover**，
+再**注销并登录**以加载 version 5 扩展。新版针对鼠标指向的文字重试 OCR，
+不会因邻近文字已被识别就提前停止；允许轻微抖动，识别失败最多重新截图一次，
+也会检测鼠标下窗口的变化。X11 和 Windows 同样包含 OCR 与抖动修复。
+
 **0.6.0 新增原生 Windows x64 支持。** 保留 Linux 悬停取词、离线 Argos、Azure、Mozhi 和现有设置界面。
 
-Windows 用户请下载 [v0.6.0](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0) 的 ZIP，校验 SHA256，解压后运行 `install-windows.ps1`。默认安装到 `D:\software\HoverTranslate\app-0.6.0`，创建桌面快捷方式。离线运行时、翻译模型、词典和设置保存在程序的 `data` 文件夹；OCR 模型和所需 DLL 已打包。初次设置需要联网，之后离线翻译不联网。Azure 密钥使用 Windows 凭据管理器保存。详情见 [Windows 安装与构建指南](docs/WINDOWS.md)。
+Windows 用户请下载 [v0.6.0](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0) 的 ZIP，校验 SHA256，解压后运行 `install-windows.ps1`。默认安装到 `D:\software\HoverTranslate\app-0.6.0`，创建桌面快捷方式。离线运行时、翻译模型、词典和设置保存在程序的 `data` 文件夹；OCR 模型和所需 DLL 已打包。初次设置需要联网，之后离线翻译不联网。Azure 密钥使用 Windows 凭据管理器保存。详情见 [Windows 安装与构建指南](docs/WINDOWS.md)。
 
 
 ## Azure 翻译（可选）
@@ -38,7 +63,7 @@ XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.6.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0)
+从 [v0.6.0 发布页](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 
@@ -95,9 +120,8 @@ KDE 和其他 Wayland 桌面需要单独的集成，本扩展不支持。
 固定弹窗会暂停后续悬停查询，关闭、Esc、暂停或退出后恢复/停止。
 只有点击复制才会写入剪贴板；不保存永久翻译历史。
 
-从 0.4.1 升级：退出旧进程、安装新包并重新打开。扩展仍是 version 4，
-已启用时不需要重装扩展或注销。0.4.0 及更早版本需在 **Hover** 页
-点击 **Set up GNOME hover**，注销并重新登录。模型和设置保留。
+升级当前源码版本：退出旧进程、安装新包并重新打开。在 **Hover** 页
+点击 **Set up GNOME hover**，注销并重新登录以加载 version 5。模型和设置保留。
 旧扩展会被暂停并提示升级。英文词典查询新增常见词形还原，如 running → run，
 但 CC-CEDICT 的英文反查覆盖范围仍有限，不能称为完整英汉词典。
 

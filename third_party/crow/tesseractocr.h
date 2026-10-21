@@ -17,6 +17,7 @@
 #include <QMap>
 #include <QVariant>
 #include <atomic>
+#include <optional>
 #include <tesseract/baseapi.h>
 #include <tesseract/ocrclass.h>
 
@@ -31,7 +32,9 @@ public:
     bool isConfigured() const override { return !m_languages.isEmpty(); }
     bool isBusy() const { return m_busy; }
     void recognize(const QImage &image, int dpi) override;
-    void recognizeLayout(const QImage &image, int dpi, bool paragraphLayout);
+    void recognizeLayout(const QImage &image, int dpi, bool paragraphLayout,
+                         std::optional<QPoint> hoverPoint = std::nullopt,
+                         const QString &textMode = QStringLiteral("line"));
     void cancel() override;
 signals:
     void linesRecognized(const QVector<OcrLine> &lines);

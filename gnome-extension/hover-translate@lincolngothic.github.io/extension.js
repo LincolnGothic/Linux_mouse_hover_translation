@@ -16,6 +16,7 @@ const XML = `<node><interface name="${SERVICE}">
   <method name="Configure"><arg type="b" direction="in"/><arg type="i" direction="in"/></method>
   <method name="ConfigureOptions"><arg type="b" direction="in"/><arg type="b" direction="in"/></method>
   <method name="Selection"><arg type="u" direction="in"/><arg type="ad" direction="in"/></method>
+  <method name="Retry"><arg type="u" direction="in"/></method>
   <method name="InteractionState"><arg type="b" direction="out"/><arg type="ad" direction="out"/><arg type="u" direction="out"/><arg type="b" direction="out"/><arg type="s" direction="out"/></method>
   <method name="Result"><arg type="u" direction="in"/><arg type="s" direction="in"/>
     <arg type="s" direction="in"/><arg type="b" direction="in"/></method>
@@ -48,9 +49,11 @@ export default class HoverTranslateExtension extends Extension {
         this._highlightEnabled = true;
         this._temporary = true;
         this._override = "";
+        this._hoverWindow = null;
         this._tracker = new HoverTracker();
         this._popup = new St.BoxLayout({vertical: true, reactive: true,
             visible: false, style_class: 'hover-translate-popup'});
+        this._popup.add_child(new St.Label({text: 'Hover Translate', style_class: 'hover-translate-heading'}));
         this._source = new St.Label({style_class: 'hover-translate-source'});
         this._translation = new St.Label({style_class: 'hover-translate-result'});
         for (const label of [this._source, this._translation]) {
@@ -151,6 +154,16 @@ export default class HoverTranslateExtension extends Extension {
                 width:w*this._crop.width,height:h*this._crop.height});
             Main.layoutManager.addChrome(box,{trackFullscreen:false}); this._highlights.push(box);
         }
+    }
+
+    RetryAsync([sequence], invocation) {
+        if (invocation.get_sender() !== this._owner) {
+            invocation.return_dbus_error(`${SERVICE}.Denied`, 'Only the connected app can retry a capture.'); return;
+        }
+        invocation.return_value(null);
+        if (this._enabled && sequence === this._sequence && !this._popup.visible && !this._blocked() &&
+            !moved(this._tracker.anchor, global.get_pointer()) &&
+            this._tracker.retry(GLib.get_monotonic_time() / 1000)) this._invalidate();
     }
 
     InteractionStateAsync(_params, invocation) {
@@ -264,6 +277,11 @@ export default class HoverTranslateExtension extends Extension {
             this._tracker.reset(); return;
         }
         if (this._popup.visible && this._pinned) return;
+        const window = this._windowAt(point);
+        if ((!this._popup.visible || !this._insidePopup(point)) && window !== this._hoverWindow) {
+            this._hoverWindow = window;
+            this._tracker.reset(); this._invalidate();
+        }
         const override = this._temporary && (pointer[2] & Clutter.ModifierType.SHIFT_MASK)
             ? ((pointer[2] & Clutter.ModifierType.CONTROL_MASK) ? 'sentence' : 'word') : '';
         if (override !== this._override) { this._override=override; this._tracker.reset(); this._invalidate(); }
@@ -298,7 +316,7 @@ export default class HoverTranslateExtension extends Extension {
             await shooter.screenshot_area(crop.x, crop.y, crop.width, crop.height, stream);
             stream.close(null);
             if (!this._alive || lifetime !== this._lifetime || !this._enabled || sequence !== this._sequence || this._blocked() ||
-                moved(point, global.get_pointer()))
+                moved(this._tracker.anchor, global.get_pointer()))
                 return;
             const data = stream.steal_as_bytes().get_data();
             // Images stay in memory. No screenshot file or clipboard write.

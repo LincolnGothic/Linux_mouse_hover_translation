@@ -5,6 +5,7 @@
  *
  * Modified 2026-10-05: see the header and docs/UPSTREAM.md.
  * Modified 2026-10-14: enlarge tiny Windows text to preserve OCR readability.
+ * Modified 2026-10-21: retry segmentation when the pointed text was missed.
  */
 #include "tesseractocr.h"
 #include <QtConcurrent>
@@ -71,7 +72,8 @@ void TesseractOcr::recognize(const QImage &source, int dpi)
     recognizeLayout(source, dpi, false);
 }
 
-void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraphLayout)
+void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraphLayout,
+                                 std::optional<QPoint> hoverPoint, const QString &textMode)
 {
     if (!isConfigured() || source.isNull()) {
         emit failed(tr("OCR needs a valid image and the English and Simplified Chinese models."));
@@ -97,13 +99,14 @@ void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraph
     m_canceled.store(false);
     m_busy = true;
     emit started();
-    m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size(), paragraphLayout] {
+    m_future = QtConcurrent::run([this, image, dpi, scale, border, originalSize = source.size(), paragraphLayout, hoverPoint, textMode] {
         OcrResult result;
         const tesseract::PageSegMode modes[] = {
             paragraphLayout ? tesseract::PSM_AUTO : tesseract::PSM_SPARSE_TEXT,
             paragraphLayout ? tesseract::PSM_SPARSE_TEXT : tesseract::PSM_AUTO};
         QImage input;
-        // Retry tiny text at 3x only after both ordinary passes find no readable lines.
+        // Hover needs readable text at the pointer, not just elsewhere in the crop.
+        // Retry the other layout and 3x scaling when that specific selection fails.
         for (int attempt = 0; attempt < (scale == 2 ? 4 : 2); ++attempt) {
             const int currentScale = attempt < 2 ? scale : 3;
             if (attempt % 2 == 0) {
@@ -174,6 +177,7 @@ void TesseractOcr::recognizeLayout(const QImage &source, int dpi, bool paragraph
             } while (iterator->Next(tesseract::RIL_TEXTLINE));
             bool readable = false;
             for (const auto &line : lines) readable |= line.confidence >= 35 && !line.text.isEmpty();
+            if (hoverPoint) readable = !HoverPolicy::textAt(lines, *hoverPoint, textMode).isEmpty();
             if (result.lines.isEmpty() || readable) result.lines = lines;
             if (readable) break;
         }

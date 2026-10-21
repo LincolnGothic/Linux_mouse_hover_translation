@@ -26,6 +26,7 @@ public:
         setWindowTitle("Reading surface");
     }
     QLineEdit *edit;
+    bool englishVisible = true;
     QPoint englishPoint() const { return mapToGlobal(QPoint(170,160)); }
     QPoint chinesePoint() const { return mapToGlobal(QPoint(155,320)); }
 protected:
@@ -35,7 +36,7 @@ protected:
         painter.fillRect(rect(), Qt::white);
         painter.setPen(Qt::black);
         painter.setFont(QFont("Noto Sans CJK SC", 30));
-        painter.drawText(QRect(100,120,760,80), Qt::AlignLeft | Qt::AlignVCenter, "Hello world");
+        if (englishVisible) painter.drawText(QRect(100,120,760,80), Qt::AlignLeft | Qt::AlignVCenter, "Hello world");
         painter.drawText(QRect(100,280,760,80), Qt::AlignLeft | Qt::AlignVCenter, "你好世界");
     }
 };
@@ -46,6 +47,8 @@ private slots:
     void init();
     void actualHoverBothDirectionsAndCache();
     void movementDropsSlowTranslation();
+    void smallJitterKeepsTranslation();
+    void missedCaptureRecoversWithoutMoving();
     void pauseDropsSlowTranslation();
     void ignoresSettingsWindow();
     void sameTargetMakesNoRequest();
@@ -137,6 +140,45 @@ void HoverTest::movementDropsSlowTranslation()
     QTest::qWait(800);
     QCOMPARE(popup.count(), 0);
     QVERIFY(!controller.popup()->isVisible());
+}
+
+void HoverTest::smallJitterKeepsTranslation()
+{
+    ReadingSurface surface; surface.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&surface));
+    MockServer server; server.delayMs = 200;
+    TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line";
+    settings.enabled = true; settings.dwellMs = 300; settings.instance = server.url();
+    const auto anchor = surface.englishPoint();
+    QCursor::setPos(anchor);
+    QVERIFY(controller.configure(settings));
+    QSignalSpy popup(&controller, &HoverController::popupShown);
+    // Capture occurs 3 px right of the dwell anchor. During OCR the pointer
+    // moves 3 px left: valid dwell jitter, but 6 px from the captured position.
+    connect(&ocr, &TesseractOcr::started, this, [anchor] { QCursor::setPos(anchor - QPoint(3,0)); });
+    QTest::qWait(120); QCursor::setPos(anchor + QPoint(3,0));
+    QVERIFY(popup.wait(8000));
+    QCOMPARE(popup.first().at(1).toString(), QString("你好，世界"));
+}
+
+void HoverTest::missedCaptureRecoversWithoutMoving()
+{
+    ReadingSurface surface; surface.englishVisible = false; surface.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&surface));
+    MockServer server;
+    TesseractOcr ocr; TranslationService client; HoverController controller(&ocr, &client);
+    HoverSettings settings; settings.provider = "mozhi"; settings.textMode = "line";
+    settings.enabled = true; settings.dwellMs = 100; settings.instance = server.url();
+    QSignalSpy captures(&ocr, &TesseractOcr::started), popup(&controller, &HoverController::popupShown);
+    connect(&ocr, &TesseractOcr::started, this, [&surface] {
+        // The first snapshot is blank; a delayed page render then exposes text.
+        surface.englishVisible = true; surface.repaint();
+    });
+    QCursor::setPos(surface.englishPoint()); QVERIFY(controller.configure(settings));
+    QVERIFY(popup.wait(8000));
+    QCOMPARE(captures.count(), 2); QCOMPARE(server.requests.size(), 1);
+    QCOMPARE(popup.first().at(0).toString(), QString("Hello world"));
 }
 
 void HoverTest::pauseDropsSlowTranslation()
@@ -281,7 +323,7 @@ void HoverTest::settingsWindowUsesActualBinary()
             auto *name = xcb_get_property_reply(connection, xcb_get_property(connection, false,
                 children[i], windowName, XCB_GET_PROPERTY_TYPE_ANY, 0, 1024), nullptr);
             if (name && QByteArray(static_cast<const char *>(xcb_get_property_value(name)),
-                xcb_get_property_value_length(name)) == QString("Hover Translate — Settings").toUtf8()) found = children[i];
+                xcb_get_property_value_length(name)) == QString("Settings — Hover Translate").toUtf8()) found = children[i];
             std::free(name);
         }
         std::free(tree);

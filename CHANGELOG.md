@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 — Google Translate and more reliable hover
+
+- Use Hover Translate consistently for Linux and Windows; align repository links with `LincolnGothic/hover-translate` while retaining installed settings/data/extension IDs.
+- Add explicit free experimental Google Translate, with no key or Mozhi server, across hover, regions, typed text and CLI. Keep Offline as the default and never switch providers automatically.
+- Encode/chunk long Unicode input, limit response sizes, handle blocked/rate-limited/invalid responses, retry transient failures once, and cancel stale requests and queued chunks.
+- Refresh settings, reader and Qt popups with palette-aware light/dark colors, clearer headings, spacing, focus states and primary actions; refine the GNOME popup.
+- Retry OCR layouts/scaling for the pointed selection, accept confident words in noisy lines, preserve results during permitted pointer jitter, and allow one fresh capture after a missed selection.
+- Update GNOME extension to version 5 with bounded recapture and hovered-window changes. Reinstall the extension and sign out/in to load these fixes.
+- Add Google and hover regression coverage and isolate X11 tests from the host Wayland session, configuration and portal services.
+
 ## 0.6.0 — native Windows x64 preview
 
 - Add native Windows hover capture/input, scale-aware crop coordinates, Escape handling and secure-desktop cancellation.

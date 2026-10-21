@@ -52,5 +52,5 @@ is the complete corresponding source, including the extension and build/setup
 scripts. Download it beside the installer. SHA256SUMS covers both files.
 Separate model/dictionary downloads retain their own licenses and attribution.
 
-[Ubuntu guide](https://github.com/LincolnGothic/Linux_mouse_hover_translation/blob/v0.3.0/docs/UBUNTU-26.04.md)
-· [Validation](https://github.com/LincolnGothic/Linux_mouse_hover_translation/blob/v0.3.0/docs/TESTING.md)
+[Ubuntu guide](https://github.com/LincolnGothic/hover-translate/blob/v0.3.0/docs/UBUNTU-26.04.md)
+· [Validation](https://github.com/LincolnGothic/hover-translate/blob/v0.3.0/docs/TESTING.md)
