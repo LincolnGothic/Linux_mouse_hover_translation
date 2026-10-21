@@ -10,7 +10,7 @@ Suggested topics:
 linux windows x11 wayland translation google-translate offline argos-translate dictionary ocr tesseract qt6 cpp chinese english mouse-hover gpl-3-0
 ```
 
-The README is available in English and Simplified Chinese, with screenshots,
+The README is available in English and Simplified Chinese, with labeled 0.7.0 preview screenshots,
 supported-platform limits, dependencies, installation, usage, privacy,
 development, tests and licensing. Copyright and provenance are in `NOTICE.md`
 and `docs/UPSTREAM.md`; corresponding-source distribution is in `docs/RELEASE.md`.
