@@ -126,8 +126,8 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
     gnomeSetup->hide();
     paragraph(tr("Automatic hover reads text locally from the monitor under the pointer. It pauses while your Windows session is locked."), hoverLayout)->setObjectName("windowsHoverLabel");
 #else
-    hoverLayout->addWidget(gnomeSetup, 0, Qt::AlignLeft);
     paragraph(tr("Automatic hover works on GNOME 50 with the extension, or X11. After installing a new extension, sign out and back in."), hoverLayout);
+    hoverLayout->addWidget(gnomeSetup, 0, Qt::AlignLeft);
 #endif
     hoverLayout->addStretch();
 

@@ -58,6 +58,7 @@ void SettingsTest::smallWindow()
     dialog.resize(size);
     dialog.show();
     QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+    QCOMPARE(dialog.findChild<QComboBox *>("targetComboBox")->font().pointSize(), fontSize);
     QCOMPARE(dialog.size(), size);
     auto *tabs = dialog.findChild<QTabWidget *>("settingsTabs");
     QVERIFY(tabs);
@@ -115,8 +116,12 @@ void SettingsTest::smallWindow()
                 : i == 1 ? dialog.findChild<QPushButton *>("testTranslationButton")
                 : dialog.findChild<QWidget *>("dictionaryLineEdit");
             QVERIFY(last);
-            QVERIFY(scroll->viewport()->rect().contains(
-                QRect(last->mapTo(scroll->viewport(), QPoint()), last->size())));
+            const QRect lastBounds(last->mapTo(scroll->viewport(), QPoint()), last->size());
+            QVERIFY2(scroll->viewport()->rect().contains(lastBounds),
+                qPrintable(QString("%1: control [%2,%3 %4x%5], viewport %6x%7")
+                    .arg(last->objectName()).arg(lastBounds.x()).arg(lastBounds.y())
+                    .arg(lastBounds.width()).arg(lastBounds.height())
+                    .arg(scroll->viewport()->width()).arg(scroll->viewport()->height())));
             bar->setValue(0);
         }
         if (!screenshots.isEmpty())

@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Hover Translate contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "appearance.h"
+#include <QCoreApplication>
 #include <QPalette>
 #include <QWidget>
 
 void applyAppStyle(QWidget *widget)
 {
+    QCoreApplication::setAttribute(Qt::AA_UseStyleSheetPropagationInWidgetStyles, true);
     const bool dark = widget->palette().color(QPalette::Window).lightness() < 128;
     QString css = QStringLiteral(R"(
         QDialog, QFrame#translationPopup { background: @window; color: @text; }
