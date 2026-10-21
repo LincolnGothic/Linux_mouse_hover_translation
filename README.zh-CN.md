@@ -24,16 +24,16 @@ Hover Translate 在 **Linux 和 Windows x64** 上统一使用同一个名称，�
 
 下载后请对照 [SHA256SUMS](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/SHA256SUMS) 校验。
 
-> **即将推出 0.7.0：**以下 Google 翻译、新版界面及悬停修复已在
+> **即将推出 0.7.0：** 以下 Google 翻译、新版界面及悬停修复已在
 > [PR #4](https://github.com/LincolnGothic/hover-translate/pull/4) 中完成，尚未包含在 0.6.0 安装包中。
 > 可先[查看预览源码](https://github.com/LincolnGothic/hover-translate/tree/codex/google-hover-refresh)。
 
 ## 0.7.0 更新预览
 
-- **Google 翻译：**免费的实验性无密钥通道。只向 Google 发送识别出的文字，截图留在本机；非官方服务可能变化或限流。
-- **新版界面：**设置和弹窗适配明暗主题，操作更清晰，小窗口可滚动，并支持较大字号。
-- **更可靠的悬停：**允许轻微鼠标抖动，针对指针下的文字重试 OCR，识别失败时最多重新截图一次。
-- **统一名称：**Linux 与 Windows 均称为 Hover Translate，保留已有设置与下载的模型。
+- **Google 翻译：** 免费的实验性无密钥通道。只向 Google 发送识别出的文字，截图留在本机；非官方服务可能变化或限流。
+- **新版界面：** 设置和弹窗适配明暗主题，操作更清晰，小窗口可滚动，并支持较大字号。
+- **更可靠的悬停：** 允许轻微鼠标抖动，针对指针下的文字重试 OCR，识别失败时最多重新截图一次。
+- **统一名称：** Linux 与 Windows 均称为 Hover Translate，保留已有设置与下载的模型。
 
 ### 0.7.0 界面预览
 
