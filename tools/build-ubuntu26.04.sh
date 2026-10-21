@@ -26,7 +26,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   gnome-shell gjs python3-gi python3-cairo gir1.2-gtk-4.0 adwaita-icon-theme nodejs
 cmake -S . -B build-ubuntu2604 -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
 cmake --build build-ubuntu2604 --parallel 3
-dbus-run-session -- xvfb-run -a -s "-screen 0 1200x900x24" ctest --test-dir build-ubuntu2604 --output-on-failure
+bash tools/test-x11.sh build-ubuntu2604
 node tests/test_gnome_policy.mjs
 bash tools/test-wayland.sh build-ubuntu2604
 if [[ "$HOVER_MODEL_CHECK" == --model-check ]]; then

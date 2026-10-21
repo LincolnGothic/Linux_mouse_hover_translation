@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import assert from 'node:assert/strict';
-import {captureArea, HoverTracker} from '../gnome-extension/hover-translate@lincolngothic.github.io/policy.js';
+import {captureArea, HoverTracker, moved} from '../gnome-extension/hover-translate@lincolngothic.github.io/policy.js';
 const tracker = new HoverTracker(600);
 assert.equal(tracker.update([100,100], false, 0), 'invalidate');
 assert.equal(tracker.update([102,100], false, 599), 'idle');
@@ -13,6 +13,15 @@ assert.equal(tracker.update([120,100], true, 2800), 'invalidate');
 assert.equal(tracker.update([120,100], true, 4000), 'idle');
 assert.equal(tracker.update([120,100], false, 4000), 'invalidate');
 assert.equal(tracker.update([120,100], false, 4600), 'capture');
+assert.equal(tracker.retry(4700), true);
+assert.equal(tracker.update([120,100], false, 5299), 'idle');
+assert.equal(tracker.update([120,100], false, 5300), 'capture');
+assert.equal(tracker.retry(5400), false); // A blank area must not poll OCR forever.
+assert.equal(tracker.update([140,100], false, 5500), 'invalidate');
+assert.equal(tracker.update([143,100], false, 6100), 'capture');
+assert.equal(moved(tracker.anchor, [137,100]), false);
+assert.equal(tracker.update([137,100], false, 6200), 'idle');
+assert.equal(tracker.retry(6300), true); // Movement re-arms the retry budget.
 const monitors = [{x:0,y:0,width:1920,height:1080}, {x:1920,y:0,width:2560,height:1440}];
 assert.deepEqual(captureArea([1950,20],monitors), {x:1920,y:0,width:380,height:100});
 assert.deepEqual(captureArea([100,100],monitors,{x:50,y:80,width:160,height:100}),

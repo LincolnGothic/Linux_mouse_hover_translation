@@ -38,6 +38,7 @@ export class HoverTracker {
         this.blocked = true;
         this.attempted = false;
         this.since = 0;
+        this.retries = 0;
     }
 
     update(point, blocked, now) {
@@ -46,6 +47,7 @@ export class HoverTracker {
             this.blocked = blocked;
             this.since = now;
             this.attempted = false;
+            this.retries = 0;
             return 'invalidate';
         }
         if (blocked || this.attempted || now - this.since < this.delay)
@@ -56,5 +58,14 @@ export class HoverTracker {
 
     dismiss() {
         this.attempted = true;
+    }
+
+    retry(now) {
+        if (!this.anchor || this.blocked || !this.attempted || this.retries >= 1)
+            return false;
+        ++this.retries;
+        this.attempted = false;
+        this.since = now;
+        return true;
     }
 }

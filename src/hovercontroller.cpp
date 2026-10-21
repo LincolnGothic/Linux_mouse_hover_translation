@@ -105,6 +105,13 @@ HoverController::HoverController(TesseractOcr *ocr, TranslationService *translat
             const auto word = m_dictionary.chineseAt(lines, m_imagePointer);
             if (!word.isEmpty()) m_sourceText = word;
         }
+        if (m_sourceText.isEmpty()) {
+            m_highlight.hide();
+            const bool retrying = m_policy.retry(m_clock.elapsed());
+            emit statusChanged(retrying ? tr("Text was not clear yet. Retrying this hover…")
+                : tr("No readable word found. Try Line mode or a screen region."));
+            return;
+        }
         if (m_settings.highlightSource) {
             auto boxes=HoverPolicy::sourceBounds(lines,m_imagePointer,m_sourceText);
             for (auto &box:boxes)
@@ -238,7 +245,7 @@ bool HoverController::current(quint64 generation) const
     if (quintptr(pointerWindow()) != m_pointerWindow) return false;
 #endif
     return m_enabled && generation == m_policy.generation()
-        && !HoverPolicy::moved(QCursor::pos(), m_capturePointer) && !blocked(QCursor::pos());
+        && !HoverPolicy::moved(QCursor::pos(), m_policy.anchor()) && !blocked(QCursor::pos());
 }
 
 void HoverController::invalidate()
@@ -333,7 +340,7 @@ void HoverController::capture()
     m_ocrGeneration = m_policy.generation();
     m_haveOcr = true;
     emit statusChanged(tr("Reading text under the pointer…"));
-    m_ocr->recognizeLayout(image, 96, m_captureMode == "sentence");
+    m_ocr->recognizeLayout(image, 96, m_captureMode == "sentence", m_imagePointer, m_captureMode);
 }
 
 QString HoverController::cacheKey(const QString &text, const QString &source) const

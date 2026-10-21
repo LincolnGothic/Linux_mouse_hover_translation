@@ -38,6 +38,7 @@ public:
     enum Action { Idle, Invalidated, Capture };
     Action update(QPoint position, bool blocked, qint64 nowMs);
     void reset();
+    bool retry(qint64 nowMs);
     void dismiss() { ++m_generation; m_attempted = true; }
     void setDwellMs(int ms) { m_dwellMs = ms; reset(); }
     quint64 generation() const { return m_generation; }
@@ -56,4 +57,5 @@ private:
     bool m_initialized = false;
     bool m_blocked = false;
     bool m_attempted = false;
+    int m_retries = 0;
 };

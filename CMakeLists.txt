@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 cmake_minimum_required(VERSION 3.22)
-project(hover_translate VERSION 0.6.0 LANGUAGES CXX)
+project(hover_translate VERSION 0.7.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -29,6 +29,8 @@ add_library(hover_core STATIC
     src/worddictionary.cpp src/worddictionary.h
     src/settings.cpp src/settings.h
     src/cloudtranslation.cpp src/cloudtranslation.h
+    src/googletranslation.cpp src/googletranslation.h
+    src/appearance.cpp src/appearance.h
     src/hoverpolicy.cpp src/hoverpolicy.h
     src/translationservice.cpp src/translationservice.h
     src/x11escape.cpp src/x11escape.h
@@ -95,8 +97,8 @@ endif()
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "qt6-qpa-plugins, qt6-wayland, qt6-svg-plugins, tesseract-ocr-eng, tesseract-ocr-chi-sim, fonts-noto-cjk, python3, python3-venv, xdg-desktop-portal")
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Offline English/Chinese translation with GNOME Wayland and X11 hover")
-set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/LincolnGothic/Linux_mouse_hover_translation")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "English/Chinese hover translation with Offline, Google, Azure and Mozhi")
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/LincolnGothic/hover-translate")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "hover-translate-${PROJECT_VERSION}-Source")

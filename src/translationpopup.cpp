@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Linux_mouse_hover_translation contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "translationpopup.h"
+#include "appearance.h"
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QPushButton>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QScreen>
+#include <QStyle>
 #include <QVBoxLayout>
 
 TranslationPopup::TranslationPopup()
@@ -17,19 +19,17 @@ TranslationPopup::TranslationPopup()
 
     setFocusPolicy(Qt::NoFocus);
     setFixedWidth(390);
-    setStyleSheet("QFrame#translationPopup { background: #f7faf9; border: 1px solid #b8d1c8; border-radius: 10px; }"
-                  "QLabel { background: transparent; border: none; color: #15342b; }");
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(18, 14, 18, 12);
     layout->setSpacing(10);
     m_direction = new QLabel(this);
-    m_direction->setStyleSheet("font-weight: 600; color: #28755c;");
+    m_direction->setObjectName("popupDirection");
     m_original = new QLabel(this);
-    m_original->setStyleSheet("color: #60756d;");
+    m_original->setProperty("role", "muted");
     m_translation = new QLabel(this);
-    m_translation->setStyleSheet("font-size: 17px; font-weight: 500;");
+    m_translation->setObjectName("popupResult");
     m_hint = new QLabel(tr("Move into this popup to copy or pin. Esc closes it."), this);
-    m_hint->setStyleSheet("font-size: 11px; color: #70827b;");
+    m_hint->setProperty("role", "muted");
     for (auto *label : {m_direction, m_original, m_translation, m_hint}) {
         label->setTextFormat(Qt::PlainText);
         label->setWordWrap(true);
@@ -44,7 +44,7 @@ TranslationPopup::TranslationPopup()
     connect(copy,&QPushButton::clicked,this,[this] { QGuiApplication::clipboard()->setText(m_translation->text()); });
     connect(m_pin,&QPushButton::toggled,this,[this](bool pinned) { m_pinned=pinned; m_pin->setText(pinned?tr("Unpin"):tr("Pin")); });
     connect(close,&QPushButton::clicked,this,[this] { dismiss(); emit dismissed(); });
-
+    applyAppStyle(this);
 }
 
 void TranslationPopup::showTranslation(QPoint pointer, const QString &source, const QString &translated,
@@ -55,7 +55,9 @@ void TranslationPopup::showTranslation(QPoint pointer, const QString &source, co
         : target == "en" ? tr("Chinese → English") : tr("English → 简体中文"));
     m_original->setText(source.left(400));
     m_translation->setText(translated.left(1200));
-    m_translation->setStyleSheet(error ? "color: #995424;" : "font-size: 17px; font-weight: 500;");
+    m_translation->setProperty("error", error);
+    m_translation->style()->unpolish(m_translation);
+    m_translation->style()->polish(m_translation);
     adjustSize();
     const auto *screen = QGuiApplication::screenAt(pointer);
     if (!screen) screen = QGuiApplication::primaryScreen();

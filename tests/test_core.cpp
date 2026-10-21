@@ -24,6 +24,7 @@ class CoreTest : public QObject {
     Q_OBJECT
 private slots:
     void dwellAndMovement();
+    void missedCaptureRetriesOnce();
     void blockedAndDismissed();
     void lineSelection();
     void wordAndSentenceSelection();
@@ -60,6 +61,22 @@ void CoreTest::dwellAndMovement()
     QVERIFY(policy.generation() > generation);
     QCOMPARE(policy.update({120,100}, false, 2499), HoverPolicy::Idle);
     QCOMPARE(policy.update({120,100}, false, 2500), HoverPolicy::Capture);
+}
+
+void CoreTest::missedCaptureRetriesOnce()
+{
+    HoverPolicy policy; policy.setDwellMs(100);
+    QCOMPARE(policy.update({100,100}, false, 0), HoverPolicy::Invalidated);
+    QCOMPARE(policy.update({100,100}, false, 100), HoverPolicy::Capture);
+    const auto first = policy.generation();
+    QVERIFY(policy.retry(120)); QVERIFY(policy.generation() > first);
+    QCOMPARE(policy.update({100,100}, false, 219), HoverPolicy::Idle);
+    QCOMPARE(policy.update({100,100}, false, 220), HoverPolicy::Capture);
+    QVERIFY(!policy.retry(250));
+    QCOMPARE(policy.update({100,100}, false, 2000), HoverPolicy::Idle);
+    QCOMPARE(policy.update({120,100}, false, 2100), HoverPolicy::Invalidated);
+    QCOMPARE(policy.update({120,100}, false, 2200), HoverPolicy::Capture);
+    QVERIFY(policy.retry(2250));
 }
 
 void CoreTest::blockedAndDismissed()
@@ -131,6 +148,10 @@ void CoreTest::wordAndSentenceSelection()
     const QVector<OcrLine> punctuation{{"(world!)",{10,10,100,20},95,
         {{"(world!)",{10,10,100,20},95,0}},0,0}};
     QCOMPARE(HoverPolicy::textAt(punctuation,{20,15},"word"),QString("world"));
+    auto noisy = punctuation; noisy[0].confidence = 20;
+    QCOMPARE(HoverPolicy::textAt(noisy,{20,15},"word"),QString("world"));
+    noisy[0].words[0].confidence = 20;
+    QVERIFY(HoverPolicy::textAt(noisy,{20,15},"word").isEmpty());
 }
 
 void CoreTest::wrappedSentenceOcr()

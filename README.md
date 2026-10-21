@@ -24,11 +24,11 @@ are available; Offline is the default. Translation models download during setup.
 
 Verify your download against [SHA256SUMS](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/SHA256SUMS).
 
-> **Coming in 0.7.0:** Google Translate, the interface refresh and hover fixes below
-> are ready for review in [PR #4](https://github.com/LincolnGothic/hover-translate/pull/4).
-> They are not included in the 0.6.0 downloads. [Browse the preview source](https://github.com/LincolnGothic/hover-translate/tree/codex/google-hover-refresh).
+> **This checkout is the 0.7.0 source preview.** It includes the changes below;
+> published downloads are still 0.6.0. Build this checkout for Google Translate,
+> the refreshed interface and hover fixes. Follow [PR #4](https://github.com/LincolnGothic/hover-translate/pull/4) for integration.
 
-## Coming in 0.7.0
+## What’s new in the 0.7.0 source preview
 
 - **Google Translate:** free experimental access without an API key. Recognized
   text goes to Google; screenshots stay local. The unofficial service may change or rate-limit requests.
@@ -108,7 +108,7 @@ The earlier v0.2.0 does not contain Wayland hover support or these fixes.
 ## Settings window
 
 - **Hover:** enable translation, target language, Word/Line/Sentence, delay, highlighting, shortcuts and GNOME setup.
-- **Translation:** Offline/Azure/Mozhi provider, provider-specific fields, usage and test translation. Argos/dictionary controls appear only for Offline; server fields only for Mozhi.
+- **Translation:** Offline/Google/Azure/Mozhi provider, provider-specific fields, usage and test translation. Google needs no key or server address. Argos/dictionary controls appear only for Offline; server fields only for Mozhi.
 - **Advanced:** optional OCR, Python, translation-model and dictionary paths.
 
 **Screen region**, **Translate text**, status, **About**, **Apply** and **Close** stay
@@ -152,10 +152,17 @@ stays until closed, Esc, pause, lock/overview, app exit or extension disable.
 Only an explicit Copy click writes to the clipboard. Pinning pauses further hover
 lookups until the popup is closed/unpinned; no permanent history is saved.
 
-**Upgrading from 0.4.1:** quit the old process, install the new package and reopen.
-The GNOME extension remains version 4; no reinstall or logout is needed if it is
-already active. From 0.4.0 or earlier, click **Hover → Set up GNOME hover**, then
-sign out and back in. App settings and downloaded models are retained.
+**Upgrading to 0.7.0:** quit the old process, install the new build and reopen.
+On GNOME Wayland, click **Hover → Set up GNOME hover**, then sign out and back
+in to load **extension version 5**. It adds one fresh capture when OCR misses
+the pointed text and notices when the hovered window changes. Saved settings
+and downloaded models are retained; application/settings/extension IDs stay compatible.
+
+Hover OCR now tries alternative layout/scaling passes when the pointed selection
+is missing, even when other text in the crop is readable. Word mode uses the
+pointed word's confidence rather than a noisy line's average. Small pointer
+jitter uses the same movement anchor throughout capture and translation.
+An empty selection gets at most one new capture per dwell; moving re-arms it.
 
 GNOME hover uses the compositor's pointer and screenshot APIs. Capture is
 limited to a 700 × 160 logical-pixel region clipped to the hovered monitor
@@ -180,6 +187,28 @@ permission dialogs remain separate from the automatic extension's validated
 capture path. GNOME manual capture needs `xdg-desktop-portal-gnome`.
 
 ## Dictionary and privacy
+
+### Google Translate (free, experimental)
+
+Select **Translation → Google Translate — free, experimental**, click **Apply**,
+then **Test translation**. No API key, Mozhi server or Argos translation-model
+download is needed. Local OCR still requires the bundled/installed English and
+Simplified Chinese Tesseract data. Hover, typed text, screen regions and CLI use
+the same explicit provider choice.
+
+Recognized/source **text is sent directly to Google** over HTTPS, using the
+keyless `translate.googleapis.com/translate_a/single` endpoint. Text travels in
+the request URL; screenshots stay on this computer. This is an **unofficial,
+experimental transport**, separate from the paid Google Cloud Translation API.
+Google can change or block it or rate-limit requests. There is no availability
+or permanent-free guarantee, no bundled key and no automatic provider fallback.
+
+Long text (up to 10,000 Unicode characters) is submitted in sequential chunks
+with a conservative encoded-URL budget, preserving Unicode characters and
+boundary whitespace. A temporary failure gets at most one retry; rate limits
+and access blocks produce a clear error. Canceling a hover cancels pending
+chunks/retries. Monthly local usage counts submissions and characters, including
+failed attempts, without storing text. Offline mode continues to keep text local.
 
 ### Azure Translator (opt-in)
 
@@ -210,7 +239,7 @@ are outside this implementation.
 
 Settings/status show `This month: 127 requests · 143,820 characters`. Local
 `cloud/cloud-usage.json` stores only month, submitted cloud request count and
-source Unicode character count for Azure and Mozhi. Failed submissions count;
+source Unicode character count for Google, Azure and Mozhi. Failed submissions count;
 cache hits, dictionary and Argos do not. Counters roll over with the local month,
 are estimates rather than billing records, contain no text/credentials, and send
 no telemetry. Errors identify credentials, quota/rate limits, timeout/network,
@@ -255,12 +284,11 @@ cmake --build build --parallel 3
 ./build/hover-translate
 ```
 
-For the regular test suites, install `libxcb-xtest0-dev xvfb xauth
+For the eight regular test suites, install `libxcb-xtest0-dev xvfb xauth
 x11-utils dbus-x11 weston`, build with `-DBUILD_TESTING=ON`, then run:
 
 ```bash
-dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' \
-  ctest --test-dir build --output-on-failure
+bash tools/test-x11.sh build
 bash tools/test-wayland.sh build
 node tests/test_gnome_policy.mjs
 ```
@@ -293,6 +321,7 @@ hover-translate --reader
 hover-translate --ocr image.png
 hover-translate --translate 'Hello world' --target zh-CN --no-dictionary
 hover-translate --translate '你好世界' --target en --no-dictionary
+hover-translate --provider google --translate 'Hello world' --target zh-CN
 ```
 
 OCR, translation, help and version work without a display. Use `--python`,
@@ -303,6 +332,6 @@ translation; `--instance` alone preserves the old online CLI behavior.
 
 Keep the GPL, copyright notices and marked modifications. Share the binary
 with its **complete matching source**, including the extension and build/setup
-scripts: `hover-translate-0.6.0-Source.tar.gz`. Separately redistributed models
+scripts: `hover-translate-0.7.0-Source.tar.gz` for a 0.7.0 build. Separately redistributed models
 and dictionary data have their own licenses. See [release instructions](docs/RELEASE.md),
 [notices](NOTICE.md), [contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md).

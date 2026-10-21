@@ -1,17 +1,19 @@
 .hover-translate-popup {
-    background-color: rgba(245, 250, 247, 0.98);
-    color: #18251f;
-    border: 1px solid #7c9c8e;
-    border-radius: 10px;
-    padding: 14px;
-    spacing: 8px;
+    background-color: rgba(250, 253, 251, 0.98);
+    color: #183c34;
+    border: 1px solid #c5dbd0;
+    border-radius: 16px;
+    box-shadow: 0 5px 20px rgba(0, 30, 20, 0.18);
+    padding: 18px;
+    spacing: 10px;
     max-width: 460px;
 }
-.hover-translate-source { color: #557065; font-size: 11pt; }
-.hover-translate-result { color: #18251f; font-size: 13pt; }
+.hover-translate-heading { color: #14775b; font-size: 10pt; font-weight: bold; }
+.hover-translate-source { color: #536f67; font-size: 11pt; }
+.hover-translate-result { color: #183c34; font-size: 14pt; }
 .hover-translate-error { color: #963f22; }
 
-.hover-translate-actions { spacing: 8px; }
-.hover-translate-actions StButton { padding: 6px 10px; border-radius: 5px; background-color: #d9e8df; color: #18251f; }
-.hover-translate-actions StButton:hover { background-color: #b8d7c5; }
+.hover-translate-actions { spacing: 8px; padding-top: 8px; }
+.hover-translate-actions StButton { padding: 8px 12px; border-radius: 8px; background-color: #e7f2ed; color: #183c34; }
+.hover-translate-actions StButton:hover { background-color: #cee8db; }
 .hover-translate-highlight { background-color: rgba(50,180,125,0.16); border: 1px solid #218561; }

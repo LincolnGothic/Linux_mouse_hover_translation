@@ -68,6 +68,12 @@ GnomeHover::GnomeHover(QObject *parent) : QObject(parent),
                     emit statusChanged(tr("Translating selected text…"));
                     m_translator.translate(m_epoch, m_source, source, m_settings.target, m_settings);
                 }
+            } else if (m_source.isEmpty()) {
+                // New extensions allow one fresh capture after a missed OCR
+                // selection. Older extensions simply ignore this optional call.
+                auto retry = method("Retry"); retry << m_token;
+                QDBusConnection::sessionBus().asyncCall(retry, 1000);
+                emit statusChanged(tr("No readable word found. Try Line mode or a screen region."));
             } else emit statusChanged(tr("Ready — hover over readable text in the other language."));
         }
         startPending();
@@ -184,7 +190,7 @@ void GnomeHover::startPending()
     auto pending = std::move(*m_pending); m_pending.reset();
     m_ocrEpoch = pending.epoch; m_point = pending.point; m_mode=pending.mode; m_imageSize=pending.image.size();
     emit statusChanged(tr("Reading text under the pointer…"));
-    m_ocr.recognizeLayout(pending.image, 96, m_mode == "sentence");
+    m_ocr.recognizeLayout(pending.image, 96, m_mode == "sentence", m_point, m_mode);
 }
 
 void GnomeHover::result(const QString &source, const QString &text, bool error)

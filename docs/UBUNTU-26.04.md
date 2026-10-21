@@ -1,20 +1,22 @@
-# Ubuntu 26.04 / GNOME 50 quick start — 0.5.0
+# Ubuntu 26.04 / GNOME 50 quick start — 0.7.0 source
 
 ## Upgrade
 
-Quit the old app through its tray menu first. Install the amd64 package:
+Quit the old app through its tray menu first. Install the 0.7.0 amd64 package
+after building it or after release assets are published (the latest existing
+packaged preview is 0.6.0):
 
 ```bash
-sudo apt install ./hover-translate_0.5.0_amd64.deb
+sudo apt install ./hover-translate_0.7.0_amd64.deb
 /usr/bin/hover-translate --version
 /usr/bin/hover-translate
 ```
 
-Version must show **0.5.0**. An older local build or launcher can shadow the
+Version must show **0.7.0**. An older local build or launcher can shadow the
 packaged binary; `/usr/bin/hover-translate` explicitly starts the new package.
-The upgrade preserves app settings and offline models. From 0.4.1, quit, upgrade
-and reopen; the unchanged version 4 GNOME extension needs no reinstall/logout.
-From 0.4.0 or earlier, use Hover → Set up GNOME hover, then sign out/in.
+The upgrade preserves app settings and offline models. Use
+**Hover → Set up GNOME hover**, then sign out/in to load extension **version 5**.
+The extension adds bounded recapture after missed OCR and hovered-window detection.
 Do not delete your configuration.
 
 ## Settings layout
@@ -39,7 +41,11 @@ scrolling is needed.
    echo "$XDG_SESSION_TYPE"
    ```
 
-3. Keep **Translation → Offline**, click **Install offline models**, and keep
+3. For keyless online translation, choose **Translation → Google Translate —
+   free, experimental**, click **Apply**, then **Test translation**. Source text
+   is sent directly to Google; screenshots stay local. The unofficial endpoint
+   can rate-limit or block requests. For local translation, keep **Offline**,
+   click **Install offline models**, and keep
    the app open until setup completes. Set the desired target and click
    **Test translation**. Models and dictionary are downloaded separately.
 4. Choose **Hover text → Word, Line or Sentence**, then check **Enable hover translation**, click **Apply**, and pause over a line
@@ -61,6 +67,9 @@ Without a tray, keep an app window open.
   original text and select a few complete lines with a margin. Leave the OCR
   model folder blank to use `tesseract-ocr-eng` and `tesseract-ocr-chi-sim`.
   Low-confidence text remains available for correction in 0.3.0.
+  Version 0.7.0 retries layout/scaling specifically for the pointed text, judges
+  Word confidence independently of noisy neighbours and retries a missed capture
+  once without requiring mouse movement. Try Line mode when Word misses text.
 - **No translation:** first test typed text to separate OCR from translation.
   Run `hover-translate-offline-setup` for the full setup error. The fixed
   downloader identifies Hover Translate to official model/dictionary hosts;

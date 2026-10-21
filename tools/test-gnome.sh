@@ -3,7 +3,26 @@
 # Isolated real GNOME Shell; never changes a logged-in user's extensions.
 set -euo pipefail
 if [[ ${HOVER_GNOME_TEST_BUS:-} != 1 ]]; then
-    exec dbus-run-session -- env HOVER_GNOME_TEST_BUS=1 bash "$0" "${1:-build}"
+    gnome_bus_dir=$(mktemp -d /tmp/hover-gnome-bus.XXXXXX)
+    trap 'rm -rf "$gnome_bus_dir"' EXIT
+    mkdir -p "$gnome_bus_dir/services"
+    # Permit only dconf activation for temporary GNOME settings. Host portals
+    # and GVfs must not create FUSE mounts in this disposable test profile.
+    cp /usr/share/dbus-1/services/ca.desrt.dconf.service "$gnome_bus_dir/services/"
+    cat > "$gnome_bus_dir/bus.conf" <<XML
+<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>session</type><listen>unix:tmpdir=/tmp</listen>
+  <servicedir>$gnome_bus_dir/services</servicedir>
+  <policy context="default">
+    <allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/>
+  </policy>
+</busconfig>
+XML
+    dbus-run-session --config-file="$gnome_bus_dir/bus.conf" -- \
+        env HOVER_GNOME_TEST_BUS=1 bash "$0" "${1:-build}"
+    exit
 fi
 gnome_build_dir=$(realpath "${1:-build}")
 gnome_test_dir=$(mktemp -d /tmp/hover-gnome.XXXXXX)
@@ -14,7 +33,7 @@ export XDG_CONFIG_HOME="$gnome_test_dir/config"
 mkdir -p "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME/gnome-shell/extensions"
 chmod 700 "$XDG_RUNTIME_DIR"
 export XDG_CURRENT_DESKTOP=GNOME XDG_SESSION_TYPE=wayland LIBGL_ALWAYS_SOFTWARE=1
-export NO_AT_BRIDGE=1
+export NO_AT_BRIDGE=1 GIO_USE_VFS=local
 dbus-update-activation-environment XDG_RUNTIME_DIR XDG_DATA_HOME XDG_CONFIG_HOME XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
 gnome_shell_pid=
 gnome_system_bus_pid=

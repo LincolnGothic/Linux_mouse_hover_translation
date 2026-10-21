@@ -2,12 +2,12 @@
 
 Suggested GitHub About description:
 
-> English/Chinese hover translation for Linux and Windows, with local OCR, Offline Argos and optional Azure or Mozhi; GPL-3.0-or-later.
+> English/Chinese hover translation for Linux and Windows, with local OCR, Offline Argos and optional Google, Azure or Mozhi; GPL-3.0-or-later.
 
 Suggested topics:
 
 ```text
-linux windows x11 wayland translation offline argos-translate dictionary ocr tesseract qt6 cpp chinese english mouse-hover gpl-3-0
+linux windows x11 wayland translation google-translate offline argos-translate dictionary ocr tesseract qt6 cpp chinese english mouse-hover gpl-3-0
 ```
 
 The README is available in English and Simplified Chinese, with labeled 0.7.0 preview screenshots,
@@ -20,12 +20,12 @@ field and topics with:
 
 ```bash
 gh repo edit LincolnGothic/hover-translate \
-  --description 'English/Chinese hover translation for Linux and Windows, with local OCR, Offline Argos and optional Azure or Mozhi; GPL-3.0-or-later.' \
+  --description 'English/Chinese hover translation for Linux and Windows, with local OCR, Offline Argos and optional Google, Azure or Mozhi; GPL-3.0-or-later.' \
   --add-topic linux --add-topic x11 --add-topic translation --add-topic ocr \
   --add-topic tesseract --add-topic qt6 --add-topic cpp --add-topic chinese \
   --add-topic english --add-topic mouse-hover --add-topic gpl-3-0 \
   --add-topic offline --add-topic argos-translate --add-topic wayland --add-topic dictionary \
-  --add-topic windows
+  --add-topic windows --add-topic google-translate
 ```
 
 Create a GitHub release from the validated version tag, keeping the binary and

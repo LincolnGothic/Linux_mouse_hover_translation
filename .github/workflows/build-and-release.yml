@@ -43,7 +43,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
           cmake --build build --parallel 2
       - name: Exercise OCR, X11 hover and screenshot portal protocol
-        run: dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' ctest --test-dir build --output-on-failure
+        run: bash tools/test-x11.sh build
       - name: Exercise GNOME hover timing and monitor geometry
         run: node tests/test_gnome_policy.mjs
       - name: Exercise the native Wayland reader

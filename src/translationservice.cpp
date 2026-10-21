@@ -58,6 +58,10 @@ void TranslationService::cancel()
     m_active = false;
     m_pending.clear();
     ++m_serial;
+    if (m_google) {
+        disconnect(m_google, nullptr, this, nullptr);
+        m_google->cancel(); m_google->deleteLater(); m_google = nullptr;
+    }
     if (m_azureReply) {
         auto *reply = m_azureReply.data();
         m_azureReply = nullptr;
@@ -77,6 +81,11 @@ void TranslationService::cancel()
 void TranslationService::translate(quint64 request, const QString &text, const QString &source,
                                    const QString &target, const HoverSettings &settings)
 {
+    if (settings.provider == "google") {
+        stopWorker();
+        translateGoogle(request, text, source, target);
+        return;
+    }
     if (settings.provider == "mozhi") {
         stopWorker();
         translateMozhi(request, text, source, target, settings.instance);
@@ -92,7 +101,29 @@ void TranslationService::translate(quint64 request, const QString &text, const Q
         return;
     }
     cancel();
-    emit failed(request, tr("Choose Offline, Azure or Mozhi translation."));
+    emit failed(request, tr("Choose Offline, Google, Azure or Mozhi translation."));
+}
+
+void TranslationService::translateGoogle(quint64 request, const QString &text, const QString &source,
+                                         const QString &target)
+{
+    cancel(); m_request = request;
+    auto *google = new GoogleTranslation(m_network, this); m_google = google;
+    connect(google, &GoogleTranslation::requestSubmitted, this, [this](qint64 characters) {
+        QString error;
+        if (!m_cloud.record(characters, &error)) {
+            const auto request = m_request; cancel(); emit failed(request, error);
+        }
+    });
+    connect(google, &GoogleTranslation::translated, this, [this, google, request](const QString &text) {
+        if (m_google != google) return;
+        cancel(); emit translated(request, text);
+    });
+    connect(google, &GoogleTranslation::failed, this, [this, google, request](const QString &error) {
+        if (m_google != google) return;
+        cancel(); emit failed(request, error);
+    });
+    google->start(text, source, target, m_timeoutMs);
 }
 
 void TranslationService::translateOffline(quint64 request, const QString &text, const QString &source,

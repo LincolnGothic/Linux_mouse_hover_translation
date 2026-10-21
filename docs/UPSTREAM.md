@@ -49,3 +49,10 @@ Windows 0.6.0 (2026-10-14) adds a 3x retry after both existing 2x
 OCR passes find no readable lines in `tesseractocr.cpp`. Successful existing
 recognition is preserved and bounds use the current attempt scale. This fixes the reproduced 10-pixel dark-text Windows
 fixture without changing recognized-text or geometry assertions.
+
+Version 0.7.0 (2026-10-21) adds an optional pointer/mode to the imported
+Tesseract layout entry point. Hover retries layout/scaling when the selected
+word/line was missed, even if unrelated text elsewhere was readable. Manual
+OCR retains its original readable-line stopping rule and coordinate mapping.
+Google's keyless transport and the shared UI appearance code are original code;
+no new third-party source, SDK or credentials are bundled.

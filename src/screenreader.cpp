@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "screenreader.h"
+#include "appearance.h"
 #include "hoverpolicy.h"
 #include <QCloseEvent>
 #include <QDialogButtonBox>
@@ -87,7 +88,7 @@ private:
 
 ScreenReader::ScreenReader(QWidget *parent) : QDialog(parent)
 {
-    setWindowTitle(tr("Translate text or screen region"));
+    setWindowTitle(tr("Text & screen region"));
     resize(680, 540);
     m_captureDelay.setSingleShot(true);
     connect(&m_captureDelay, &QTimer::timeout, &m_capture, &PortalCapture::capture);
@@ -97,6 +98,7 @@ ScreenReader::ScreenReader(QWidget *parent) : QDialog(parent)
     m_source = new QPlainTextEdit(this); m_source->setObjectName("sourceText");
     m_source->setPlaceholderText(tr("English or Chinese text…")); layout->addWidget(m_source);
     m_result = new QPlainTextEdit(this); m_result->setObjectName("resultText");
+    m_result->setPlaceholderText(tr("Your translation appears here…"));
     m_result->setReadOnly(true); layout->addWidget(m_result);
     m_status = new QLabel(this); m_status->setWordWrap(true); m_status->setTextFormat(Qt::PlainText);
     layout->addWidget(m_status);
@@ -105,6 +107,7 @@ ScreenReader::ScreenReader(QWidget *parent) : QDialog(parent)
     captureButton->setObjectName("captureButton");
     auto *translate = buttons->addButton(tr("Translate"), QDialogButtonBox::ActionRole);
     translate->setObjectName("translateButton");
+    translate->setProperty("primary", true);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &ScreenReader::close);
     connect(captureButton, &QPushButton::clicked, this, &ScreenReader::capture);
@@ -138,6 +141,7 @@ ScreenReader::ScreenReader(QWidget *parent) : QDialog(parent)
         if (generation == m_generation) m_status->setText(error);
     });
     connect(m_source, &QPlainTextEdit::textChanged, this, [this] { ++m_generation; m_translator.cancel(); m_result->clear(); });
+    applyAppStyle(this);
 }
 
 void ScreenReader::configure(const HoverSettings &settings)
@@ -146,6 +150,8 @@ void ScreenReader::configure(const HoverSettings &settings)
     m_result->clear(); m_settings = settings;
     m_status->setText(settings.provider == "offline"
         ? tr("Offline: text stays on this computer. Translation models must be installed once.")
+        : settings.provider == "google"
+        ? tr("Google Translate (free, experimental): source text is sent to Google. Screenshots stay on this computer.")
         : settings.provider == "azure"
         ? tr("Azure: source text is sent to Microsoft Azure Translator. Screenshots stay on this computer.")
         : tr("Online: text will be sent to your selected Mozhi server."));

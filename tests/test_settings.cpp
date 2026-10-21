@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QScopeGuard>
 #include <QSpinBox>
 #include <QStyleOptionSlider>
 #include <QTabWidget>
@@ -29,12 +30,24 @@ void SettingsTest::smallWindow_data()
     QTest::newRow("small") << QSize(420, 440) << 11;
     QTest::newRow("large-font") << QSize(480, 500) << 16;
     QTest::newRow("standard") << QSize(640, 700) << 11;
+    QTest::newRow("dark") << QSize(640, 700) << 11;
 }
 
 void SettingsTest::smallWindow()
 {
     QFETCH(QSize, size);
     QFETCH(int, fontSize);
+    const auto originalPalette = qApp->palette();
+    const auto restorePalette = qScopeGuard([originalPalette] { qApp->setPalette(originalPalette); });
+    if (QByteArray(QTest::currentDataTag()) == "dark") {
+        QPalette dark = originalPalette;
+        dark.setColor(QPalette::Window, QColor("#162024"));
+        dark.setColor(QPalette::Base, QColor("#1d2a2e"));
+        dark.setColor(QPalette::Button, QColor("#1d2a2e"));
+        for (auto role : {QPalette::Text, QPalette::WindowText, QPalette::ButtonText})
+            dark.setColor(role, QColor("#e3eeeb"));
+        qApp->setPalette(dark);
+    }
     SettingsDialog dialog;
 #ifdef Q_OS_WIN
     QVERIFY(dialog.findChild<QPushButton *>("gnomeSetupButton")->isHidden());
@@ -45,6 +58,7 @@ void SettingsTest::smallWindow()
     dialog.resize(size);
     dialog.show();
     QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+    QCOMPARE(dialog.findChild<QComboBox *>("targetComboBox")->font().pointSize(), fontSize);
     QCOMPARE(dialog.size(), size);
     auto *tabs = dialog.findChild<QTabWidget *>("settingsTabs");
     QVERIFY(tabs);
@@ -54,6 +68,10 @@ void SettingsTest::smallWindow()
     bool exercisedWheel = false;
     for (int i = 0; i < tabs->count(); ++i) {
         tabs->setCurrentIndex(i);
+        if (i == 1 && QByteArray(QTest::currentDataTag()) == "dark") {
+            auto *provider = dialog.findChild<QComboBox *>("providerComboBox");
+            provider->setCurrentIndex(provider->findData("google"));
+        }
         QTest::qWait(30);
         auto *scroll = qobject_cast<QScrollArea *>(tabs->currentWidget());
         QVERIFY(scroll);
@@ -98,8 +116,12 @@ void SettingsTest::smallWindow()
                 : i == 1 ? dialog.findChild<QPushButton *>("testTranslationButton")
                 : dialog.findChild<QWidget *>("dictionaryLineEdit");
             QVERIFY(last);
-            QVERIFY(scroll->viewport()->rect().contains(
-                QRect(last->mapTo(scroll->viewport(), QPoint()), last->size())));
+            const QRect lastBounds(last->mapTo(scroll->viewport(), QPoint()), last->size());
+            QVERIFY2(scroll->viewport()->rect().contains(lastBounds),
+                qPrintable(QString("%1: control [%2,%3 %4x%5], viewport %6x%7")
+                    .arg(last->objectName()).arg(lastBounds.x()).arg(lastBounds.y())
+                    .arg(lastBounds.width()).arg(lastBounds.height())
+                    .arg(scroll->viewport()->width()).arg(scroll->viewport()->height())));
             bar->setValue(0);
         }
         if (!screenshots.isEmpty())
@@ -175,6 +197,18 @@ void SettingsTest::providerSpecificFields()
     provider->setCurrentIndex(provider->findData("mozhi"));
     QVERIFY(!server->isHidden()); QVERIFY(credentials->isHidden());
     QVERIFY(dictionary->isHidden()); QVERIFY(setup->isHidden());
+    provider->setCurrentIndex(provider->findData("google"));
+    QCOMPARE(dialog.settings().provider, QString("google"));
+    QVERIFY(server->isHidden()); QVERIFY(credentials->isHidden());
+    QVERIFY(dictionary->isHidden()); QVERIFY(setup->isHidden());
+    const auto screenshots = qEnvironmentVariable("HOVER_SETTINGS_SCREENSHOTS");
+    if (!screenshots.isEmpty()) {
+        dialog.findChild<QTabWidget *>("settingsTabs")->setCurrentIndex(1);
+        dialog.setStatus("Google Translate is ready. Screenshots stay on this computer.");
+        dialog.resize(640, 700); dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QVERIFY(dialog.grab().save(screenshots + "/google-translation.png"));
+    }
 }
 
 QTEST_MAIN(SettingsTest)

@@ -1,4 +1,4 @@
-# Validation and known limitations — 0.4.2
+# Validation and known limitations — 0.7.0
 
 Build platforms: Debian 13 / Qt 6.8.2 and Ubuntu 26.04 amd64 / Qt 6.10.2 /
 GCC 15.2. The native Ubuntu runtime uses Python 3.14, CPU PyTorch 2.14.1 and
@@ -7,8 +7,7 @@ Argos Translate 1.11.0. TLS uses trusted CA bundles; verification is enabled.
 ## Regular suites and native Wayland client
 
 ```bash
-dbus-run-session -- xvfb-run -a -s '-screen 0 1200x900x24' \
-  ctest --test-dir build --output-on-failure
+bash tools/test-x11.sh build
 bash tools/test-wayland.sh build
 node tests/test_gnome_policy.mjs
 ```
@@ -17,12 +16,16 @@ node tests/test_gnome_policy.mjs
 | --- | --- |
 | core | Timing, languages, word/sentence selection, wrapped-sentence OCR, OCR geometry, small/dark text, settings, local HTTP fixture, dictionary worker, cancellation/timeouts and missing runtime |
 | azure_provider | Mock Qt network manager, provider migration, en/zh-Hans mapping, parsing/auth/HTTP/network errors, missing/private credentials, cancellation/timeouts/stale replies and monthly metadata-only usage; no live Azure requests |
+| google_provider | Mock Qt network manager, provider persistence/cache isolation, URL encoding, Unicode chunking, multi-segment parsing, malformed/blocked/rate-limited responses, timeout/cancellation/recovery, bounded retries and metadata-only usage |
 | settings_ui | Small window and large fonts, no horizontal overflow, actual wheel/scrollbar dragging, lower controls reachable, fixed footer, retained paths/modes and Apply/reader/test actions |
 | hover_x11 | Actual X11 capture/OCR/popup, Escape/pause/movement/cache and focus/selection/clipboard preservation |
 | portal_capture | Screenshot D-Bus fixture, actual crop/OCR/dictionary, invalid URI, cancellation/timeout and clipboard preservation |
 | gnome_bridge | Local extension-protocol fixture, actual OCR/dictionary, HiDPI ratios, invalid/stale captures and canceled work |
 | offline_setup | Truthful downloader identity, complete content, TLS redirect downgrade/truncation rejection and local sentence chunks |
 
+The X11 helper clears inherited Wayland variables and uses temporary settings,
+data and runtime directories plus a private D-Bus without host service activation.
+It can run from a Wayland desktop without starting the host portal/keyring.
 The Qt suites use real Tesseract and Python dictionary lookup; synthetic
 samples and local services are labeled. The Weston helper additionally runs
 the portal suite with Qt's native Wayland backend. This does not validate an

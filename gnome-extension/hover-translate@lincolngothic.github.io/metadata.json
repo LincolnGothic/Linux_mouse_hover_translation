@@ -3,6 +3,6 @@
   "name": "Hover Translate",
   "description": "Translate words and sentences under the pointer locally with the Hover Translate desktop app.",
   "shell-version": ["50"],
-  "version": 4,
-  "url": "https://github.com/LincolnGothic/Linux_mouse_hover_translation"
+  "version": 5,
+  "url": "https://github.com/LincolnGothic/hover-translate"
 }

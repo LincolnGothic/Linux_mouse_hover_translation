@@ -9,7 +9,12 @@ target_link_libraries(test_azure PRIVATE hover_core Qt6::Test)
 add_test(NAME azure_provider COMMAND test_azure)
 set_tests_properties(azure_provider PROPERTIES TIMEOUT 30)
 
-add_executable(test_settings test_settings.cpp ../src/settingsdialog.cpp ../src/settingsdialog.h)
+add_executable(test_google test_google.cpp)
+target_link_libraries(test_google PRIVATE hover_core Qt6::Test)
+add_test(NAME google_provider COMMAND test_google)
+set_tests_properties(google_provider PROPERTIES TIMEOUT 30)
+
+add_executable(test_settings test_settings.cpp ../src/settingsdialog.cpp ../src/settingsdialog.h ../resources.qrc)
 target_link_libraries(test_settings PRIVATE hover_core Qt6::Test)
 add_test(NAME settings_ui COMMAND test_settings)
 set_tests_properties(settings_ui PROPERTIES TIMEOUT 30)

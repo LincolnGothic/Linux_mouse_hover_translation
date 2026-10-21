@@ -1,5 +1,10 @@
 # Windows x64
 
+The current 0.7.0 source adds **Google Translate — free, experimental**, refreshed
+settings/popups and missed-hover fixes. The latest downloadable preview below is
+0.6.0 until 0.7.0 artifacts are published. Both platforms use **Hover Translate**;
+the repository is `LincolnGothic/hover-translate`. Existing app/data IDs are retained.
+
 Hover Translate 0.6.0 is a native Qt Windows preview. It supports automatic
 Word, Line and Sentence OCR under the pointer, source highlighting,
 Copy/Pin/Close popups, Escape dismissal, typed text and manual region selection.
@@ -41,14 +46,20 @@ Settings are `data/settings.ini`. Offline resources are `data/argos-env`,
 
 ## Optional online providers
 
-Offline remains the default. Azure and Mozhi are explicit choices. Azure sends
+Offline remains the default. In 0.7.0, choose **Google Translate — free,
+experimental** for keyless text translation directly through Google. No offline
+translation runtime is needed; `-SkipOfflineSetup` avoids that optional download.
+Screenshots stay local. Google's unofficial endpoint may change, block or
+rate-limit requests; no provider is used as an automatic fallback.
+
+Azure and Mozhi are also explicit choices. Azure sends
 only source/recognized text to Microsoft; screenshots remain local. Configure
 your own Azure resource key in the application's masked local dialog. Keys use
 Windows Credential Manager for the current user, scoped to this installed
 folder, and are never written to INI settings or monthly usage metadata.
 Microsoft quotas/pricing apply. Moving the folder changes the credential
 identity; reconfigure Azure for that folder. Mozhi sends text to the selected
-server. Neither online provider is selected as an automatic fallback.
+server. Online choices never change automatically.
 
 ## Build and verify
 
@@ -69,7 +80,7 @@ From PowerShell in the source folder:
 python tools/package-windows.py --source . --build build-windows --prefix C:/msys64/ucrt64 --output release-windows
 ```
 
-The build runs shared core/settings/Azure tests, native controlled-window
+The build runs shared core/settings/Google/Azure tests, native controlled-window
 capture/hover tests and offline setup tests. The native suite needs an unlocked
 interactive desktop; do not use the mouse or lock the session while it runs.
 Real-model validation requires separately installed models:
