@@ -8,7 +8,7 @@ Manual capture previews the primary screen. OCR and screenshots remain local.
 ## Install
 
 Download `hover-translate-0.6.0-windows-x64.zip` and `SHA256SUMS` from the
-[v0.6.0 release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0).
+[v0.6.0 release](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0).
 Check the ZIP hash with `Get-FileHash -Algorithm SHA256`, extract it, open
 PowerShell in the extracted `HoverTranslate-0.6.0` folder, then run:
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Use [GitHub Issues](https://github.com/LincolnGothic/Linux_mouse_hover_translation/issues)
+Use [GitHub Issues](https://github.com/LincolnGothic/hover-translate/issues)
 for bugs and proposed features. Describe the behavior, expected result and
 reproduction steps. For capture/OCR problems, include desktop/session type,
 monitor count, scaling, Qt and Tesseract versions, model names, and a small

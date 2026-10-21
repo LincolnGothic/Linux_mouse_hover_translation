@@ -1,9 +1,70 @@
 # Hover Translate
 
-**0.6.0 新增原生 Windows x64 支持。** 保留 Linux 悬停取词、离线 Argos、Azure、Mozhi 和现有设置界面。
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-Windows 用户请下载 [v0.6.0](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0) 的 ZIP，校验 SHA256，解压后运行 `install-windows.ps1`。默认安装到 `D:\software\HoverTranslate\app-0.6.0`，创建桌面快捷方式。离线运行时、翻译模型、词典和设置保存在程序的 `data` 文件夹；OCR 模型和所需 DLL 已打包。初次设置需要联网，之后离线翻译不联网。Azure 密钥使用 Windows 凭据管理器保存。详情见 [Windows 安装与构建指南](docs/WINDOWS.md)。
+**鼠标所指，即刻阅读英语 ↔ 简体中文。**
 
+悬停翻译单词、行或句子，也可框选屏幕文字或手动输入。
+Hover Translate 在 **Linux 和 Windows x64** 上统一使用同一个名称，提供本地 OCR 和可选离线翻译。
+
+[下载预览版](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0) ·
+[Windows 指南](docs/WINDOWS.md) · [Ubuntu 指南](docs/UBUNTU-26.04.md) ·
+[反馈问题](https://github.com/LincolnGothic/hover-translate/issues)
+
+## 下载
+
+最新已打包的预览版为 **0.6.0**，提供离线 Argos、Azure Translator 和 Mozhi，
+默认使用 Offline。离线翻译模型在初次设置时下载。
+
+| 平台 | 安装包 | 安装指南 |
+| --- | --- | --- |
+| Windows x64 | [便携 ZIP](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate-0.6.0-windows-x64.zip) | [Windows 设置](docs/WINDOWS.md) |
+| Ubuntu 26.04 amd64 | [Debian 安装包](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate_0.6.0_amd64.deb) | [Ubuntu 设置](docs/UBUNTU-26.04.md) |
+| 源码 | [0.6.0 对应完整源码](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate-0.6.0-Source.tar.gz) | [编译与验证](#编译验证与分发) |
+
+下载后请对照 [SHA256SUMS](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/SHA256SUMS) 校验。
+
+> **即将推出 0.7.0：**以下 Google 翻译、新版界面及悬停修复已在
+> [PR #4](https://github.com/LincolnGothic/hover-translate/pull/4) 中完成，尚未包含在 0.6.0 安装包中。
+> 可先[查看预览源码](https://github.com/LincolnGothic/hover-translate/tree/codex/google-hover-refresh)。
+
+## 0.7.0 更新预览
+
+- **Google 翻译：**免费的实验性无密钥通道。只向 Google 发送识别出的文字，截图留在本机；非官方服务可能变化或限流。
+- **新版界面：**设置和弹窗适配明暗主题，操作更清晰，小窗口可滚动，并支持较大字号。
+- **更可靠的悬停：**允许轻微鼠标抖动，针对指针下的文字重试 OCR，识别失败时最多重新截图一次。
+- **统一名称：**Linux 与 Windows 均称为 Hover Translate，保留已有设置与下载的模型。
+
+### 0.7.0 界面预览
+
+<table>
+  <tr><th>浅色界面</th><th>深色界面</th></tr>
+  <tr>
+    <td><img src="docs/images/settings-light.png" alt="Hover Translate 0.7.0 浅色设置界面，已选择实验性 Google 翻译" width="480"></td>
+    <td><img src="docs/images/settings-dark.png" alt="Hover Translate 0.7.0 深色设置界面，已选择实验性 Google 翻译" width="480"></td>
+  </tr>
+</table>
+
+## 桌面支持
+
+| 桌面 | 自动悬停 | 其他翻译方式 |
+| --- | --- | --- |
+| Windows x64 | 原生 Windows 截图 | 区域截图、输入文字 |
+| GNOME 50 Wayland | 随附扩展；安装后需注销并登录 | 截图门户、输入文字 |
+| Linux X11/Xorg | 单显示器、100% 缩放 | 区域截图、输入文字 |
+| 其他 Wayland 桌面 | 需要单独的合成器集成 | 可用时使用截图门户，或输入文字 |
+
+**本项目仍为预览版。** 用户实际桌面、分数缩放和其他 GNOME 版本仍需验证。
+详见[验证与已知限制](docs/TESTING.md)。采用 **GPL-3.0-or-later**，保留
+[Crow 版权声明](NOTICE.md)和[上游来源说明](docs/UPSTREAM.md)。
+
+## Windows x64 安装
+
+解压上方 ZIP，校验后运行 `install-windows.ps1`。默认安装到
+`D:\software\HoverTranslate\app-0.6.0`，创建桌面快捷方式。
+离线运行时、模型、词典和设置保存在程序的 `data` 文件夹，OCR 模型和 DLL 已打包。
+初次设置需要联网，之后离线翻译不联网。Azure 密钥使用 Windows 凭据管理器保存。
+详情见 [Windows 安装与构建指南](docs/WINDOWS.md)。
 
 ## Azure 翻译（可选）
 
@@ -25,20 +86,10 @@ XDG_CONFIG_HOME），目录权限 700、文件权限 600，并检查所有者及
 使用 Qt Network 直接调用 REST v3，无 Azure SDK；仅支持全球 HTTPS 端点及资源密钥，
 暂不支持自定义/VNet 端点和 Entra ID。详细配置及隐私说明见英文 README。
 
-[English](README.md) · [简体中文](README.zh-CN.md)
-
-开源的英语 ↔ 简体中文鼠标悬停翻译工具。**0.5.0** 新增可选 Azure 翻译，保留 Offline Argos、Mozhi 和适配小窗口的页签设置。通过随附的
-**GNOME 50 扩展**，支持 Ubuntu 26.04 默认 Wayland 桌面的自动悬停翻译。
-本地 Tesseract OCR、Argos 句子模型和可选 CC-CEDICT 词典不需要 API 密钥。
-采用 GPL-3.0-or-later，保留 Crow Translate 版权及修改声明。
-
-本版仍为预览版。已在真实的无显示器 GNOME 50 合成器中验证鼠标输入、
-截图、OCR、双向离线模型翻译及弹窗。用户实际桌面、分数缩放和其他 GNOME
-版本仍需验证。模型不包含在安装包内，需要首次下载。
 
 ## Ubuntu 26.04 安装与使用
 
-从 [v0.6.0 发布页](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0)
+从 [v0.6.0 发布页](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0)
 下载 amd64 安装包；对应完整源码和校验文件在同一页面。
 先从托盘菜单退出旧进程，再安装：
 

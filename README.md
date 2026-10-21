@@ -2,28 +2,75 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
-Open-source **English ↔ Simplified Chinese** translation where you point.
-Version **0.6.0** adds native **Windows x64** support while preserving Linux hover, Offline Argos, Azure, Mozhi and the tabbed settings window.
-Automatic hover on **Ubuntu 26.04 / GNOME 50 Wayland** uses the included GNOME extension. Local Tesseract OCR, Argos sentence
-translation and optional CC-CEDICT word definitions require no API key in Offline mode.
-Azure Translator is opt-in; Mozhi remains available.
+**English ↔ Simplified Chinese, wherever you point.**
+
+Hover over a word, line or sentence, select a screen region, or type your own text.
+Hover Translate brings local OCR and optional offline translation to **Linux and Windows x64**.
+
+[Download the preview](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0) ·
+[Windows guide](docs/WINDOWS.md) · [Ubuntu guide](docs/UBUNTU-26.04.md) ·
+[Report a problem](https://github.com/LincolnGothic/hover-translate/issues)
+
+## Download
+
+The latest packaged preview is **0.6.0**. Offline Argos, Azure Translator and Mozhi
+are available; Offline is the default. Translation models download during setup.
+
+| Platform | Package | Installation guide |
+| --- | --- | --- |
+| Windows x64 | [Portable ZIP](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate-0.6.0-windows-x64.zip) | [Windows setup](docs/WINDOWS.md) |
+| Ubuntu 26.04 amd64 | [Debian package](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate_0.6.0_amd64.deb) | [Ubuntu setup](docs/UBUNTU-26.04.md) |
+| Source | [Matching 0.6.0 source](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/hover-translate-0.6.0-Source.tar.gz) | [Build and validate](#build-and-validate) |
+
+Verify your download against [SHA256SUMS](https://github.com/LincolnGothic/hover-translate/releases/download/v0.6.0/SHA256SUMS).
+
+> **Coming in 0.7.0:** Google Translate, the interface refresh and hover fixes below
+> are ready for review in [PR #4](https://github.com/LincolnGothic/hover-translate/pull/4).
+> They are not included in the 0.6.0 downloads. [Browse the preview source](https://github.com/LincolnGothic/hover-translate/tree/codex/google-hover-refresh).
+
+## Coming in 0.7.0
+
+- **Google Translate:** free experimental access without an API key. Recognized
+  text goes to Google; screenshots stay local. The unofficial service may change or rate-limit requests.
+- **A refreshed interface:** light/dark settings and popups, clearer controls,
+  scrolling small windows and support for larger text.
+- **More reliable hover lookups:** tolerate small pointer movements, retry OCR
+  for the text under the pointer, and take one fresh capture after a miss.
+- **One name on both platforms:** Hover Translate, with existing settings and downloaded models preserved.
+
+### Interface preview — 0.7.0
+
+<table>
+  <tr><th>Light appearance</th><th>Dark appearance</th></tr>
+  <tr>
+    <td><img src="docs/images/settings-light.png" alt="Hover Translate 0.7.0 light settings with experimental Google Translate selected" width="480"></td>
+    <td><img src="docs/images/settings-dark.png" alt="Hover Translate 0.7.0 dark settings with experimental Google Translate selected" width="480"></td>
+  </tr>
+</table>
+
+## Desktop support
+
+| Desktop | Automatic hover | Other ways to translate |
+| --- | --- | --- |
+| Windows x64 | Native Windows capture | Screen region and typed text |
+| GNOME 50 Wayland | Included GNOME extension; set it up and sign out/in | Screenshot portal and typed text |
+| Linux X11/Xorg | One monitor at 100% scaling | Screen region and typed text |
+| Other Wayland desktops | Requires a separate compositor integration | Screenshot portal where available, and typed text |
+
+**Preview software:** physical desktops, fractional scaling and other GNOME
+versions need more testing. See [validation and known limits](docs/TESTING.md).
 Licensed **GPL-3.0-or-later**, with preserved [Crow notices](NOTICE.md) and
 [upstream provenance](docs/UPSTREAM.md).
 
-**This is a preview.** Real pointer capture, OCR, sentence translation and
-shell popups pass in a headless GNOME 50 compositor. Physical desktops,
-fractional scaling and other GNOME versions remain unverified. The installer
-does not bundle translation models. See [validation](docs/TESTING.md).
-
 ## Install on Windows x64
 
-Download the [Windows preview](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0), verify the ZIP checksum, extract it and run `install-windows.ps1`. The default folder is `D:\software\HoverTranslate\app-0.6.0`. Offline setup downloads a private CPU Python runtime and both translation models into the application folder; OCR models and DLLs are bundled.
+Download the [Windows preview](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0), verify the ZIP checksum, extract it and run `install-windows.ps1`. The default folder is `D:\software\HoverTranslate\app-0.6.0`. Offline setup downloads a private CPU Python runtime and both translation models into the application folder; OCR models and DLLs are bundled.
 
 Detailed installation, build instructions and limits: [Windows guide](docs/WINDOWS.md).
 
 ## Install on Ubuntu 26.04 amd64
 
-[Download the release](https://github.com/LincolnGothic/Linux_mouse_hover_translation/releases/tag/v0.6.0),
+[Download the release](https://github.com/LincolnGothic/hover-translate/releases/tag/v0.6.0),
 including the installer, matching complete source and checksums.
 Quit an older running app before upgrading:
 
@@ -73,10 +120,11 @@ when you click Apply. Saved choices and offline downloads are preserved.
 
 | Mode | Desktop | Interaction |
 | --- | --- | --- |
+| Automatic hover | Windows x64 | Enable hover, apply settings and pause over text |
 | Automatic hover | GNOME 50 Wayland + included extension | Set up the extension, sign out/in, enable hover and pause over a line |
 | Automatic hover | X11/Xorg, one monitor at 100% scaling | Enable hover, apply settings and pause over a line |
-| Screen region | Wayland/X11 + screenshot portal/backend | Approve a screenshot, then drag around text in the preview |
-| Typed text | Wayland/X11 | Type or paste text, then press Ctrl+Enter |
+| Screen region | Windows, Wayland/X11 + screenshot portal/backend | Approve a screenshot, then drag around text in the preview |
+| Typed text | Windows/Wayland/X11 | Type or paste text, then press Ctrl+Enter |
 
 **Hover text** controls automatic hover only:
 
@@ -207,7 +255,7 @@ cmake --build build --parallel 3
 ./build/hover-translate
 ```
 
-For the six regular test suites, install `libxcb-xtest0-dev xvfb xauth
+For the regular test suites, install `libxcb-xtest0-dev xvfb xauth
 x11-utils dbus-x11 weston`, build with `-DBUILD_TESTING=ON`, then run:
 
 ```bash
